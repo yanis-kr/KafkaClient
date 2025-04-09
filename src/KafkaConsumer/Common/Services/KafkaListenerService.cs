@@ -23,9 +23,9 @@ public class KafkaListenerService : BackgroundService
                                 IOptions<TopicConfigurations> topicConfig,
                                 IOptions<KafkaSettings> kafkaSettings)
     {
-        _dispatcher = dispatcher;
-        _topicConfig = topicConfig;
-        _kafkaSettings = kafkaSettings;
+        _dispatcher = dispatcher ?? throw new ArgumentNullException(nameof(dispatcher));
+        _topicConfig = topicConfig ?? throw new ArgumentNullException(nameof(topicConfig));
+        _kafkaSettings = kafkaSettings ?? throw new ArgumentNullException(nameof(kafkaSettings));
     }
 
     protected override Task ExecuteAsync(CancellationToken stoppingToken)
@@ -100,32 +100,20 @@ public class KafkaListenerService : BackgroundService
 
     private ConsumerConfig BuildKafkaConfig()
     {
-        var kafkaConfig = _kafkaSettings.Value;
-        var consumerConfig = new ConsumerConfig
+        var settings = _kafkaSettings.Value;
+        return new ConsumerConfig
         {
-            BootstrapServers = kafkaConfig.BootstrapServers,
-            GroupId = kafkaConfig.GroupId,
-            // Set auto offset reset behavior
-            AutoOffsetReset = kafkaConfig.AutoOffsetReset?.ToLower() == "earliest"
-                                ? AutoOffsetReset.Earliest
-                                : AutoOffsetReset.Latest,
-            EnableAutoCommit = true,  // auto-commit offsets after each consume (configurable)
-
-            // Security settings
-            SecurityProtocol = kafkaConfig.SecurityProtocol == "SaslSsl"
-                ? SecurityProtocol.SaslSsl
-                : SecurityProtocol.Plaintext,
-            SaslMechanism = kafkaConfig.SaslMechanisms == "Plain"
-                ? SaslMechanism.Plain
-                : SaslMechanism.ScramSha256,
-            SaslUsername = kafkaConfig.SaslUsername,
-            SaslPassword = kafkaConfig.SaslPassword,
-
-            // Additional settings
-            SessionTimeoutMs = kafkaConfig.SessionTimeoutMs,
-            ClientId = kafkaConfig.ClientId
+            BootstrapServers = settings.BootstrapServers,
+            GroupId = settings.GroupId,
+            AutoOffsetReset = Enum.Parse<AutoOffsetReset>(settings.AutoOffsetReset),
+            SecurityProtocol = Enum.Parse<SecurityProtocol>(settings.SecurityProtocol),
+            SaslMechanism = Enum.Parse<SaslMechanism>(settings.SaslMechanisms),
+            SaslUsername = settings.SaslUsername,
+            SaslPassword = settings.SaslPassword,
+            SessionTimeoutMs = settings.SessionTimeoutMs,
+            ClientId = settings.ClientId,
+            EnableAutoCommit = settings.EnableAutoCommit
         };
-        return consumerConfig;
     }
 }
 

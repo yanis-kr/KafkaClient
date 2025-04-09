@@ -4,12 +4,13 @@ using System;
 
 namespace KafkaConsumer.Features.UpdateUser.Handlers;
 
-class UpdateUserHandler : IEventHandler
+public class UpdateUserHandler : IEventHandler
 {
     public string Name => "UpdateUser";
 
     public bool ProcessEvent(CloudEvent e)
     {
+        if (e == null) throw new ArgumentNullException(nameof(e));
         Console.WriteLine($"[{Name}] Processing event: {e.Type}, ID={e.Id}");
         return true;
     }
