@@ -1,17 +1,24 @@
 using CloudNative.CloudEvents;
 using KafkaConsumer.Features.UpdateOrder.Handlers;
-using System;
-using Xunit;
+using KafkaConsumer.Tests.Fixtures;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Moq;
+
 
 namespace KafkaConsumer.Tests.Features.UpdateOrder.Handlers;
 
-public class UpdateOrderHandlerTests
+public class UpdateOrderHandlerTests : IClassFixture<HostFixture>
 {
+    private readonly IHost _host;
     private readonly UpdateOrderHandler _handler;
-
-    public UpdateOrderHandlerTests()
+    private readonly Mock<ILogger<UpdateOrderHandler>> _mockLogger;
+    public UpdateOrderHandlerTests(HostFixture fixture)
     {
-        _handler = new UpdateOrderHandler();
+        // Set up the host with logging
+        _host = fixture.TestHost;
+        _mockLogger = new Mock<ILogger<UpdateOrderHandler>>();
+        _handler = new UpdateOrderHandler(_mockLogger.Object);
     }
 
     [Fact]
