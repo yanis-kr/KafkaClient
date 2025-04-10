@@ -1,13 +1,13 @@
 using KafkaConsumer.Common.Contracts;
 using KafkaConsumer.Common.Services;
 using KafkaConsumer.Extensions;
-using Microsoft.Extensions.Configuration;
+using KafkaConsumer.Common.Logging;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using System.IO;
 
 var builder = Host.CreateDefaultBuilder(args)
     .ConfigureAppConfigurationWithUserSecrets()
+    .ConfigureLogging()
     .ConfigureServices((context, services) => services
         .AddOptionsConfigurations(context.Configuration)
         .RegisterEventHandlers()

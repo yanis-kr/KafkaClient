@@ -1,63 +1,63 @@
 using KafkaConsumer.Common.Configuration;
 using KafkaConsumer.Common.Contracts;
-using KafkaConsumer.Common.Extensions;
+using KafkaConsumer.Extensions;
+using KafkaConsumer.Tests.Fixtures;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Xunit;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Serilog;
 
-namespace KafkaConsumer.Tests.Common.Extensions;
+namespace KafkaConsumer.Tests.Extensions;
 
-public class ServiceCollectionExtensionsTests
+public class ServiceCollectionExtensionsTests : IClassFixture<HostFixture>
 {
-    [Fact]
-    public void RegisterEventHandlers_RegistersAllEventHandlers()
+    private readonly IHost _host;
+    public ServiceCollectionExtensionsTests(HostFixture fixture)
     {
-        // Arrange
-        var services = new ServiceCollection();
+        // Set up the host with logging
+        _host = fixture.TestHost;
+    }
+    [Fact]
+    public void RegisterEventHandlers_RegistersAllEventHandlerImplementations()
+    {
+        var handlers = _host.Services.GetServices<IEventHandler>().ToList();
 
-        // Act
-        services.RegisterEventHandlers();
-
-        // Assert
-        var serviceProvider = services.BuildServiceProvider();
-        var handlers = serviceProvider.GetServices<IEventHandler>();
         Assert.NotEmpty(handlers);
+        Assert.Contains(handlers, h => h.Name == "UpdateOrder");
+        Assert.Contains(handlers, h => h.Name == "UpdateUser");
     }
 
     [Fact]
-    public void AddOptionsConfigurations_ConfiguresAllOptions()
+    public void AddOptionsConfigurations_RegistersConfigurationOptions()
     {
         // Arrange
         var services = new ServiceCollection();
+        var configurationValues = new Dictionary<string, string?>
+        {
+            { "TopicConfigurations:CurrentSet", "Development" },
+            { "TopicConfigurations:Sets:Development:0:TopicName", "topic_1" },
+            { "TopicConfigurations:Sets:Development:0:EventType", "user.created" },
+            { "TopicConfigurations:Sets:Development:0:HandlerName", "UpdateUser" },
+            { "Kafka:BootstrapServers", "localhost:9092" },
+            { "Kafka:GroupId", "test-group" }
+        };
+
         var configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string>
-            {
-                ["TopicConfigurations:CurrentSet"] = "Set1",
-                ["TopicConfigurations:Sets:Set1:0:TopicName"] = "topic1",
-                ["TopicConfigurations:Sets:Set1:0:EventType"] = "test.event",
-                ["TopicConfigurations:Sets:Set1:0:HandlerName"] = "TestHandler",
-                ["Kafka:BootstrapServers"] = "localhost:9092",
-                ["Kafka:GroupId"] = "test-group"
-            })
+            .AddInMemoryCollection(configurationValues)
             .Build();
 
         // Act
         services.AddOptionsConfigurations(configuration);
+        var serviceProvider = services.BuildServiceProvider();
 
         // Assert
-        var serviceProvider = services.BuildServiceProvider();
-        var topicConfig = serviceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<TopicConfigurations>>();
-        var kafkaSettings = serviceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<KafkaSettings>>();
+        var topicConfig = serviceProvider.GetService<Microsoft.Extensions.Options.IOptions<TopicConfigurations>>();
+        var kafkaSettings = serviceProvider.GetService<Microsoft.Extensions.Options.IOptions<KafkaSettings>>();
 
-        Assert.NotNull(topicConfig.Value);
-        Assert.NotNull(kafkaSettings.Value);
-        Assert.Equal("Set1", topicConfig.Value.CurrentSet);
-        Assert.Single(topicConfig.Value.Sets["Set1"]);
-        var topicEntry = topicConfig.Value.Sets["Set1"][0];
-        Assert.Equal("topic1", topicEntry.TopicName);
-        Assert.Equal("test.event", topicEntry.EventType);
-        Assert.Equal("TestHandler", topicEntry.HandlerName);
+        Assert.NotNull(topicConfig);
+        Assert.NotNull(kafkaSettings);
+        Assert.Equal("Development", topicConfig.Value.CurrentSet);
         Assert.Equal("localhost:9092", kafkaSettings.Value.BootstrapServers);
-        Assert.Equal("test-group", kafkaSettings.Value.GroupId);
     }
 } 

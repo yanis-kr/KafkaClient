@@ -3,13 +3,9 @@ using KafkaConsumer.Common.Configuration;
 using KafkaConsumer.Common.Contracts;
 using KafkaConsumer.Common.Services;
 using KafkaConsumer.Tests.Common.Mocks;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
-using Xunit;
 
 namespace KafkaConsumer.Tests.Common.Services;
 
@@ -18,6 +14,7 @@ public class KafkaListenerServiceTests
     private readonly Mock<IEventDispatcher> _mockDispatcher;
     private readonly Mock<IOptions<TopicConfigurations>> _mockTopicConfig;
     private readonly Mock<IOptions<KafkaSettings>> _mockKafkaSettings;
+    private readonly Mock<ILogger<KafkaListenerService>> _mockLogger;
     private readonly TopicConfigurations _topicConfig;
     private readonly KafkaSettings _kafkaSettings;
 
@@ -26,6 +23,7 @@ public class KafkaListenerServiceTests
         _mockDispatcher = new Mock<IEventDispatcher>();
         _mockTopicConfig = new Mock<IOptions<TopicConfigurations>>();
         _mockKafkaSettings = new Mock<IOptions<KafkaSettings>>();
+        _mockLogger = new Mock<ILogger<KafkaListenerService>>();
 
         _topicConfig = new TopicConfigurations
         {
@@ -55,7 +53,7 @@ public class KafkaListenerServiceTests
     public async Task ExecuteAsync_WhenCancelled_StopsGracefully()
     {
         // Arrange
-        var service = new KafkaListenerService(_mockDispatcher.Object, _mockTopicConfig.Object, _mockKafkaSettings.Object);
+        var service = new KafkaListenerService(_mockDispatcher.Object, _mockTopicConfig.Object, _mockKafkaSettings.Object, _mockLogger.Object);
         var cts = new CancellationTokenSource();
         cts.Cancel(); // Cancel immediately
 
@@ -73,12 +71,14 @@ public class KafkaListenerServiceTests
         var dispatcher = new MockEventDispatcher();
         var topicConfig = new MockTopicConfigurations();
         var kafkaSettings = new MockKafkaSettings();
+        var logger = new Mock<ILogger<KafkaListenerService>>();
 
         // Act
         var service = new KafkaListenerService(
             dispatcher,
             Options.Create(topicConfig),
-            Options.Create(kafkaSettings));
+            Options.Create(kafkaSettings),
+            logger.Object);
 
         // Assert
         Assert.NotNull(service);
@@ -89,7 +89,7 @@ public class KafkaListenerServiceTests
     {
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() => 
-            new KafkaListenerService(null, _mockTopicConfig.Object, _mockKafkaSettings.Object));
+            new KafkaListenerService(null, _mockTopicConfig.Object, _mockKafkaSettings.Object, _mockLogger.Object));
     }
 
     [Fact]
@@ -97,7 +97,7 @@ public class KafkaListenerServiceTests
     {
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() => 
-            new KafkaListenerService(_mockDispatcher.Object, null, _mockKafkaSettings.Object));
+            new KafkaListenerService(_mockDispatcher.Object, null, _mockKafkaSettings.Object, _mockLogger.Object));
     }
 
     [Fact]
@@ -105,6 +105,6 @@ public class KafkaListenerServiceTests
     {
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() => 
-            new KafkaListenerService(_mockDispatcher.Object, _mockTopicConfig.Object, null));
+            new KafkaListenerService(_mockDispatcher.Object, _mockTopicConfig.Object, null, _mockLogger.Object));
     }
 } 

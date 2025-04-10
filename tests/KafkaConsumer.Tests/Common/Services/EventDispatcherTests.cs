@@ -2,11 +2,9 @@ using CloudNative.CloudEvents;
 using KafkaConsumer.Common.Configuration;
 using KafkaConsumer.Common.Contracts;
 using KafkaConsumer.Common.Services;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
-using System;
-using System.Collections.Generic;
-using Xunit;
 
 namespace KafkaConsumer.Tests.Common.Services;
 
@@ -15,12 +13,14 @@ public class EventDispatcherTests
     private readonly Mock<IOptions<TopicConfigurations>> _mockConfigOptions;
     private readonly Mock<IEventHandler> _mockUpdateOrderHandler;
     private readonly Mock<IEventHandler> _mockUpdateUserHandler;
+    private readonly Mock<ILogger<EventDispatcher>> _mockLogger;
     private readonly TopicConfigurations _config;
 
     public EventDispatcherTests()
     {
         _mockUpdateOrderHandler = new Mock<IEventHandler>();
         _mockUpdateUserHandler = new Mock<IEventHandler>();
+        _mockLogger = new Mock<ILogger<EventDispatcher>>();
 
         _mockUpdateOrderHandler.Setup(h => h.Name).Returns("UpdateOrder");
         _mockUpdateUserHandler.Setup(h => h.Name).Returns("UpdateUser");
@@ -49,7 +49,7 @@ public class EventDispatcherTests
         var handlers = new List<IEventHandler> { _mockUpdateOrderHandler.Object, _mockUpdateUserHandler.Object };
 
         // Act
-        var dispatcher = new EventDispatcher(_mockConfigOptions.Object, handlers);
+        var dispatcher = new EventDispatcher(_mockConfigOptions.Object, handlers, _mockLogger.Object);
 
         // Assert
         Assert.NotNull(dispatcher);
@@ -63,7 +63,7 @@ public class EventDispatcherTests
         var handlers = new List<IEventHandler> { _mockUpdateOrderHandler.Object, _mockUpdateUserHandler.Object };
 
         // Act & Assert
-        Assert.Throws<InvalidOperationException>(() => new EventDispatcher(_mockConfigOptions.Object, handlers));
+        Assert.Throws<InvalidOperationException>(() => new EventDispatcher(_mockConfigOptions.Object, handlers, _mockLogger.Object));
     }
 
     [Fact]
@@ -73,7 +73,7 @@ public class EventDispatcherTests
         var handlers = new List<IEventHandler> { _mockUpdateOrderHandler.Object }; // Missing UpdateUser handler
 
         // Act & Assert
-        Assert.Throws<InvalidOperationException>(() => new EventDispatcher(_mockConfigOptions.Object, handlers));
+        Assert.Throws<InvalidOperationException>(() => new EventDispatcher(_mockConfigOptions.Object, handlers, _mockLogger.Object));
     }
 
     [Fact]
@@ -81,7 +81,7 @@ public class EventDispatcherTests
     {
         // Arrange
         var handlers = new List<IEventHandler> { _mockUpdateOrderHandler.Object, _mockUpdateUserHandler.Object };
-        var dispatcher = new EventDispatcher(_mockConfigOptions.Object, handlers);
+        var dispatcher = new EventDispatcher(_mockConfigOptions.Object, handlers, _mockLogger.Object);
         var cloudEvent = new CloudEvent
         {
             Type = "user.created",
@@ -104,7 +104,7 @@ public class EventDispatcherTests
     {
         // Arrange
         var handlers = new List<IEventHandler> { _mockUpdateOrderHandler.Object, _mockUpdateUserHandler.Object };
-        var dispatcher = new EventDispatcher(_mockConfigOptions.Object, handlers);
+        var dispatcher = new EventDispatcher(_mockConfigOptions.Object, handlers, _mockLogger.Object);
         var cloudEvent = new CloudEvent
         {
             Type = "unknown.event",
@@ -125,7 +125,7 @@ public class EventDispatcherTests
     {
         // Arrange
         var handlers = new List<IEventHandler> { _mockUpdateOrderHandler.Object, _mockUpdateUserHandler.Object };
-        var dispatcher = new EventDispatcher(_mockConfigOptions.Object, handlers);
+        var dispatcher = new EventDispatcher(_mockConfigOptions.Object, handlers, _mockLogger.Object);
 
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() => dispatcher.DispatchEvent(null));
@@ -136,7 +136,7 @@ public class EventDispatcherTests
     {
         // Arrange
         var handlers = new List<IEventHandler> { _mockUpdateOrderHandler.Object, _mockUpdateUserHandler.Object };
-        var dispatcher = new EventDispatcher(_mockConfigOptions.Object, handlers);
+        var dispatcher = new EventDispatcher(_mockConfigOptions.Object, handlers, _mockLogger.Object);
         var cloudEvent = new CloudEvent
         {
             Type = "user.created",

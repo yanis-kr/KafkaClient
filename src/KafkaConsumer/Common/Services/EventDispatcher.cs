@@ -1,6 +1,7 @@
 ﻿using CloudNative.CloudEvents;
 using KafkaConsumer.Common.Configuration;
 using KafkaConsumer.Common.Contracts;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
@@ -11,13 +12,17 @@ namespace KafkaConsumer.Common.Services;
 public class EventDispatcher : IEventDispatcher
 {
     private readonly Dictionary<string, IEventHandler> _handlersByEventType;
+    private readonly ILogger<EventDispatcher> _logger;
 
     public EventDispatcher(IOptions<TopicConfigurations> configOptions,
-                           IEnumerable<IEventHandler> handlers)
+                         IEnumerable<IEventHandler> handlers,
+                         ILogger<EventDispatcher> logger)
     {
         var config = configOptions.Value;
-        Console.WriteLine($"EventDispatcher: Current configuration set: {config.CurrentSet}");
-        Console.WriteLine($"EventDispatcher: Available sets: {string.Join(", ", config.Sets.Keys)}");
+        _logger = logger;
+        
+        _logger.LogInformation("Current configuration set: {CurrentSet}", config.CurrentSet);
+        _logger.LogInformation("Available sets: {Sets}", string.Join(", ", config.Sets.Keys));
         
         string currentSet = config.CurrentSet;
         if (string.IsNullOrEmpty(currentSet) || !config.Sets.ContainsKey(currentSet))
@@ -26,52 +31,52 @@ public class EventDispatcher : IEventDispatcher
         }
 
         var activeTopics = config.Sets[currentSet];
-        Console.WriteLine($"EventDispatcher: Active topics count: {activeTopics.Count}");
+        _logger.LogInformation("Active topics count: {Count}", activeTopics.Count);
         
         _handlersByEventType = new Dictionary<string, IEventHandler>(StringComparer.OrdinalIgnoreCase);
 
-        // Build mapping from EventType -> Handler instance
         foreach (var entry in activeTopics)
         {
-            Console.WriteLine($"EventDispatcher: Processing topic {entry.TopicName} with event type {entry.EventType}");
-            // Find the handler with matching Name (case-insensitive)
-            var handler = handlers.FirstOrDefault(h =>
-                string.Equals(h.Name, entry.HandlerName, StringComparison.OrdinalIgnoreCase));
+            _logger.LogInformation("Processing topic {TopicName} with event type {EventType}", 
+                entry.TopicName, entry.EventType);
+
+            var handler = handlers.FirstOrDefault(h => h.Name.Equals(entry.HandlerName, 
+                StringComparison.OrdinalIgnoreCase));
+
             if (handler == null)
             {
-                throw new InvalidOperationException($"No handler implementation found for '{entry.HandlerName}' (needed for EventType='{entry.EventType}').");
+                throw new InvalidOperationException(
+                    $"No handler found with name '{entry.HandlerName}' for event type '{entry.EventType}'");
             }
-            if (_handlersByEventType.ContainsKey(entry.EventType))
-            {
-                throw new InvalidOperationException($"Multiple handlers configured for the same EventType '{entry.EventType}' - each event type must be unique.");
-            }
+
             _handlersByEventType[entry.EventType] = handler;
-            Console.WriteLine($"EventDispatcher: Successfully mapped {entry.EventType} to handler {handler.Name}");
+            _logger.LogInformation("Successfully mapped {EventType} to handler {HandlerName}", 
+                entry.EventType, handler.Name);
         }
     }
 
     public bool DispatchEvent(CloudEvent cloudEvent)
     {
-        if (cloudEvent == null) throw new ArgumentNullException(nameof(cloudEvent));
-        string eventType = cloudEvent.Type;
-        if (_handlersByEventType.TryGetValue(eventType, out var handler))
+        if (cloudEvent == null)
         {
-            // Found a matching handler, invoke it
-            try
-            {
-                return handler.ProcessEvent(cloudEvent);
-            }
-            catch (Exception ex)
-            {
-                // Handle exceptions from processing (logging, etc.)
-                Console.Error.WriteLine($"Error in handler '{handler.Name}' for event '{eventType}': {ex}");
-                return false;
-            }
+            throw new ArgumentNullException(nameof(cloudEvent));
         }
-        else
+
+        string eventType = cloudEvent.Type;
+        if (!_handlersByEventType.TryGetValue(eventType, out var handler))
         {
-            // No handler for this event type
-            Console.WriteLine($"Warning: No handler configured for event type '{eventType}'. Event ignored.");
+            _logger.LogWarning("No handler configured for event type '{EventType}'. Event ignored.", eventType);
+            return false;
+        }
+
+        try
+        {
+            return handler.ProcessEvent(cloudEvent);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error processing event {EventType} with handler {HandlerName}", 
+                eventType, handler.Name);
             return false;
         }
     }
