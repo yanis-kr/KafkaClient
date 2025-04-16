@@ -10,11 +10,11 @@ namespace KafkaConsumer.Tests.Common.Services;
 
 public class EventDispatcherTests
 {
-    private readonly Mock<IOptions<TopicConfigurations>> _mockConfigOptions;
+    private readonly Mock<IOptions<TopicSettings>> _mockConfigOptions;
     private readonly Mock<IEventHandler> _mockUpdateOrderHandler;
     private readonly Mock<IEventHandler> _mockUpdateUserHandler;
     private readonly Mock<ILogger<EventDispatcher>> _mockLogger;
-    private readonly TopicConfigurations _config;
+    private readonly TopicSettings _config;
 
     public EventDispatcherTests()
     {
@@ -25,7 +25,7 @@ public class EventDispatcherTests
         _mockUpdateOrderHandler.Setup(h => h.Name).Returns("UpdateOrder");
         _mockUpdateUserHandler.Setup(h => h.Name).Returns("UpdateUser");
 
-        _config = new TopicConfigurations
+        _config = new TopicSettings
         {
             CurrentSet = "Development",
             Sets = new Dictionary<string, List<TopicConfigEntry>>
@@ -38,7 +38,7 @@ public class EventDispatcherTests
             }
         };
 
-        _mockConfigOptions = new Mock<IOptions<TopicConfigurations>>();
+        _mockConfigOptions = new Mock<IOptions<TopicSettings>>();
         _mockConfigOptions.Setup(x => x.Value).Returns(_config);
     }
 

@@ -17,12 +17,12 @@ namespace KafkaConsumer.Common.Services;
 public class KafkaListenerService : BackgroundService
 {
     private readonly IEventDispatcher _dispatcher;
-    private readonly IOptions<TopicConfigurations> _topicConfig;
+    private readonly IOptions<TopicSettings> _topicConfig;
     private readonly IOptions<KafkaSettings> _kafkaSettings;
     private readonly ILogger<KafkaListenerService> _logger;
 
     public KafkaListenerService(IEventDispatcher dispatcher,
-                                IOptions<TopicConfigurations> topicConfig,
+                                IOptions<TopicSettings> topicConfig,
                                 IOptions<KafkaSettings> kafkaSettings,
                                 ILogger<KafkaListenerService> logger)
     {

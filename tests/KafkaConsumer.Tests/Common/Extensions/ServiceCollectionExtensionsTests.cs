@@ -52,7 +52,7 @@ public class ServiceCollectionExtensionsTests : IClassFixture<HostFixture>
         var serviceProvider = services.BuildServiceProvider();
 
         // Assert
-        var topicConfig = serviceProvider.GetService<Microsoft.Extensions.Options.IOptions<TopicConfigurations>>();
+        var topicConfig = serviceProvider.GetService<Microsoft.Extensions.Options.IOptions<TopicSettings>>();
         var kafkaSettings = serviceProvider.GetService<Microsoft.Extensions.Options.IOptions<KafkaSettings>>();
 
         Assert.NotNull(topicConfig);
