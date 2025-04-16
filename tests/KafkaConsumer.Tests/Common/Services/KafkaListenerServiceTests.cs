@@ -12,20 +12,20 @@ namespace KafkaConsumer.Tests.Common.Services;
 public class KafkaListenerServiceTests
 {
     private readonly Mock<IEventDispatcher> _mockDispatcher;
-    private readonly Mock<IOptions<TopicConfigurations>> _mockTopicConfig;
+    private readonly Mock<IOptions<TopicSettings>> _mockTopicConfig;
     private readonly Mock<IOptions<KafkaSettings>> _mockKafkaSettings;
     private readonly Mock<ILogger<KafkaListenerService>> _mockLogger;
-    private readonly TopicConfigurations _topicConfig;
+    private readonly TopicSettings _topicConfig;
     private readonly KafkaSettings _kafkaSettings;
 
     public KafkaListenerServiceTests()
     {
         _mockDispatcher = new Mock<IEventDispatcher>();
-        _mockTopicConfig = new Mock<IOptions<TopicConfigurations>>();
+        _mockTopicConfig = new Mock<IOptions<TopicSettings>>();
         _mockKafkaSettings = new Mock<IOptions<KafkaSettings>>();
         _mockLogger = new Mock<ILogger<KafkaListenerService>>();
 
-        _topicConfig = new TopicConfigurations
+        _topicConfig = new TopicSettings
         {
             CurrentSet = "Development",
             Sets = new Dictionary<string, List<TopicConfigEntry>>

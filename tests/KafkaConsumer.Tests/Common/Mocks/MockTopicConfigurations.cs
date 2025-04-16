@@ -2,7 +2,7 @@ using KafkaConsumer.Common.Configuration;
 
 namespace KafkaConsumer.Tests.Common.Mocks;
 
-public class MockTopicConfigurations : TopicConfigurations
+public class MockTopicConfigurations : TopicSettings
 {
     public MockTopicConfigurations()
     {

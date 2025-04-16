@@ -14,7 +14,7 @@ public class EventDispatcher : IEventDispatcher
     private readonly Dictionary<string, IEventHandler> _handlersByEventType;
     private readonly ILogger<EventDispatcher> _logger;
 
-    public EventDispatcher(IOptions<TopicConfigurations> configOptions,
+    public EventDispatcher(IOptions<TopicSettings> configOptions,
                          IEnumerable<IEventHandler> handlers,
                          ILogger<EventDispatcher> logger)
     {

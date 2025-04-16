@@ -23,8 +23,9 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddOptionsConfigurations(this IServiceCollection services, 
         IConfiguration config)
     {
-        services.Configure<KafkaConsumer.Common.Configuration.TopicConfigurations>(config.GetSection("TopicConfigurations"));
-        services.Configure<KafkaConsumer.Common.Configuration.KafkaSettings>(config.GetSection("Kafka"));
+        services.Configure<Common.Configuration.ExternalSystemsSettings>(config.GetSection("ExternalSystems"));
+        services.Configure<Common.Configuration.TopicSettings>(config.GetSection("TopicConfigurations"));
+        services.Configure<Common.Configuration.KafkaSettings>(config.GetSection("Kafka"));
         return services;
     }
 } 
