@@ -2,7 +2,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using System.IO;
 
-namespace KafkaConsumer.Extensions;
+namespace KafkaConsumer.Common.Extensions;
 
 public static class HostBuilderExtensions
 {

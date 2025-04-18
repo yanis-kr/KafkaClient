@@ -1,9 +1,5 @@
-﻿using CloudNative.CloudEvents;
-using CloudNative.CloudEvents.Kafka;
-using CloudNative.CloudEvents.SystemTextJson;
-using Confluent.Kafka;
+﻿using Confluent.Kafka;
 using KafkaConsumer.Common.Configuration;
-using KafkaConsumer.Common.Contracts;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -16,29 +12,31 @@ namespace KafkaConsumer.Common.Services;
 
 public class KafkaListenerService : BackgroundService
 {
-    private readonly IEventDispatcher _dispatcher;
+    private readonly ITopicResolver _topicResolver;
     private readonly IOptions<TopicSettings> _topicConfig;
     private readonly IOptions<KafkaSettings> _kafkaSettings;
     private readonly ILogger<KafkaListenerService> _logger;
+    private IConsumer<string, byte[]> _consumer;
 
-    public KafkaListenerService(IEventDispatcher dispatcher,
-                                IOptions<TopicSettings> topicConfig,
-                                IOptions<KafkaSettings> kafkaSettings,
-                                ILogger<KafkaListenerService> logger)
+    public KafkaListenerService(
+        ITopicResolver topicResolver,
+        IOptions<TopicSettings> topicConfig,
+        IOptions<KafkaSettings> kafkaSettings,
+        ILogger<KafkaListenerService> logger)
     {
-        _dispatcher = dispatcher ?? throw new ArgumentNullException(nameof(dispatcher));
+        _topicResolver = topicResolver ?? throw new ArgumentNullException(nameof(topicResolver));
         _topicConfig = topicConfig ?? throw new ArgumentNullException(nameof(topicConfig));
         _kafkaSettings = kafkaSettings ?? throw new ArgumentNullException(nameof(kafkaSettings));
-        _logger = logger;
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
-    protected override Task ExecuteAsync(CancellationToken stoppingToken)
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         // Build consumer configuration from settings
         ConsumerConfig consumerConfig = BuildKafkaConfig();
 
         // Create the Kafka consumer (ignoring message key, using byte[] for value)
-        using var consumer = new ConsumerBuilder<string, byte[]>(consumerConfig)
+        _consumer = new ConsumerBuilder<string, byte[]>(consumerConfig)
             .SetErrorHandler((_, e) =>
                 _logger.LogError("Kafka Error: {Reason}", e.Reason))
             .Build();
@@ -46,9 +44,9 @@ public class KafkaListenerService : BackgroundService
         // Determine topics to subscribe (from active config set)
         string currentSet = _topicConfig.Value.CurrentSet;
         var topics = _topicConfig.Value.Sets[currentSet].Select(t => t.TopicName).Distinct();
-        consumer.Subscribe(topics);
+        _consumer.Subscribe(topics);
 
-        _logger.LogInformation("Subscribed to topics: {Topics} (set: {CurrentSet})", 
+        _logger.LogInformation("Subscribed to topics: {Topics} (set: {CurrentSet})",
             string.Join(", ", topics), currentSet);
 
         try
@@ -57,33 +55,41 @@ public class KafkaListenerService : BackgroundService
             {
                 try
                 {
-                    var consumeResult = consumer.Consume(stoppingToken);
-                    var cloudEventFormatter = new JsonEventFormatter();
-                    var cloudEvent = consumeResult.Message.ToCloudEvent(cloudEventFormatter);
-
-                    if (!_dispatcher.DispatchEvent(cloudEvent))
+                    ConsumeResult<string, byte[]> consumeResult = _consumer.Consume(stoppingToken);
+                    if (consumeResult?.Message == null)
                     {
-                        _logger.LogWarning("Event (Type={EventType}, Id={EventId}) was not handled.", 
-                            cloudEvent.Type, cloudEvent.Id);
+                        continue;
                     }
+
+                    var handler = _topicResolver.ResolveHandler(consumeResult);
+                    if (handler == null)
+                    {
+                        _logger.LogWarning("No handler found for message from topic {Topic}", consumeResult.Topic);
+                        continue;
+                    }
+
+                    await handler.ProcessEvent(consumeResult);
                 }
                 catch (ConsumeException ex)
                 {
                     _logger.LogError(ex, "Consume error: {Reason}", ex.Error.Reason);
                 }
+                catch (OperationCanceledException)
+                {
+                    // Normal shutdown
+                    _logger.LogInformation("Service shutdown requested");
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error processing message");
+                }
             }
-        }
-        catch (OperationCanceledException)
-        {
-            // Normal shutdown
-            _logger.LogInformation("Service shutdown requested");
         }
         finally
         {
-            consumer.Close();
+            _consumer?.Close();
         }
-
-        return Task.CompletedTask;
     }
 
     private ConsumerConfig BuildKafkaConfig()

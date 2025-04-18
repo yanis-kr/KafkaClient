@@ -17,7 +17,7 @@ public static class ServiceCollectionExtensions
             typeof(IEventHandler).IsAssignableFrom(t) && !t.IsInterface && !t.IsAbstract);
         foreach (var type in handlerTypes)
         {
-            services.AddSingleton(typeof(IEventHandler), type);
+            services.AddScoped(type);
         }
         return services;
     }
@@ -25,6 +25,7 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddOptionsConfigurations(this IServiceCollection services, 
         IConfiguration config)
     {
+        services.Configure<ExternalSystemsSettings>(config.GetSection("ExternalSystems"));
         services.Configure<TopicSettings>(config.GetSection("TopicConfigurations"));
         services.Configure<KafkaSettings>(config.GetSection("Kafka"));
         return services;
