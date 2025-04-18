@@ -1,7 +1,6 @@
-using KafkaConsumer.Common.Contracts;
-using KafkaConsumer.Common.Services;
-using KafkaConsumer.Extensions;
+using KafkaConsumer.Common.Extensions;
 using KafkaConsumer.Common.Logging;
+using KafkaConsumer.Common.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -11,7 +10,7 @@ var builder = Host.CreateDefaultBuilder(args)
     .ConfigureServices((context, services) => services
         .AddOptionsConfigurations(context.Configuration)
         .RegisterEventHandlers()
-        .AddSingleton<IEventDispatcher, EventDispatcher>()
+        .AddSingleton<ITopicResolver, TopicResolver>()
         .AddHostedService<KafkaListenerService>());
 
 var app = builder.Build();

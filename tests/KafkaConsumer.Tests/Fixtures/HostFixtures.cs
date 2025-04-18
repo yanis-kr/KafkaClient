@@ -1,4 +1,4 @@
-﻿using KafkaConsumer.Extensions;
+﻿using KafkaConsumer.Common.Extensions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
