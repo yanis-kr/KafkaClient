@@ -63,6 +63,13 @@ public class TopicResolver : ITopicResolver
 
         foreach (var subscription in currentSetSubscriptions)
         {
+            // Validate that each subscription has at least one handler
+            if (subscription.HandlerNames == null || !subscription.HandlerNames.Any())
+            {
+                throw new InvalidOperationException(
+                    $"Topic '{subscription.TopicName}' with event type '{subscription.EventType}' must have at least one handler defined.");
+            }
+
             if (!result.TryGetValue(subscription.TopicName, out var topicDict))
             {
                 topicDict = new Dictionary<string, List<Type>>(StringComparer.OrdinalIgnoreCase);
@@ -75,25 +82,38 @@ public class TopicResolver : ITopicResolver
                 topicDict[subscription.EventType] = handlerList;
             }
 
-            if (subscription.HandlerNames is null)
-            {
-                _logger.LogWarning("Handler names are null for topic '{TopicName}' and event type '{EventType}'",
-                    subscription.TopicName, subscription.EventType);
-                subscription.HandlerNames = new List<string>();
-            }
+            // Track if at least one valid handler was found for this subscription
+            bool hasValidHandler = false;
+
             foreach (var handlerName in subscription.HandlerNames)
             {
                 var handlerType = Type.GetType(handlerName);
                 if (handlerType == null)
                 {
-                    _logger.LogWarning("Handler type '{HandlerType}' not found for topic '{TopicName}'", 
-                        handlerName, subscription.TopicName);
+                    _logger.LogError("Handler type '{HandlerType}' not found for topic '{TopicName}' and event type '{EventType}'", 
+                        handlerName, subscription.TopicName, subscription.EventType);
+                    continue;
+                }
+
+                // Validate that the handler implements IEventHandler
+                if (!typeof(IEventHandler).IsAssignableFrom(handlerType))
+                {
+                    _logger.LogError("Handler type '{HandlerType}' does not implement IEventHandler interface", handlerName);
                     continue;
                 }
 
                 handlerList.Add(handlerType);
+                hasValidHandler = true;
                 _logger.LogInformation("Mapped topic '{TopicName}' with event type '{EventType}' to handler type '{HandlerType}'", 
                     subscription.TopicName, subscription.EventType, handlerType.Name);
+            }
+
+            // Validate that at least one valid handler was found
+            if (!hasValidHandler)
+            {
+                throw new InvalidOperationException(
+                    $"No valid handlers found for topic '{subscription.TopicName}' with event type '{subscription.EventType}'. " +
+                    $"All specified handlers must exist and implement IEventHandler.");
             }
         }
 
