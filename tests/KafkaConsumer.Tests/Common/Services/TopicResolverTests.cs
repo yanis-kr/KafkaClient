@@ -115,6 +115,126 @@ public class TopicResolverTests
         Assert.Empty(results);
     }
 
+    [Fact]
+    public void Constructor_WithEmptyHandlerNames_ThrowsException()
+    {
+        // Arrange
+        var topicSettings = new TopicSettings
+        {
+            CurrentSet = "TestSet",
+            Sets = new Dictionary<string, List<TopicSubscription>>
+            {
+                ["TestSet"] = new List<TopicSubscription>
+                {
+                    new() 
+                    { 
+                        TopicName = "test-topic", 
+                        EventType = "test.event", 
+                        HandlerNames = new List<string>() // Empty list
+                    }
+                }
+            }
+        };
+
+        _mockTopicConfig.Setup(x => x.Value).Returns(topicSettings);
+
+        // Act & Assert
+        var exception = Assert.Throws<InvalidOperationException>(() => 
+            new TopicResolver(_mockTopicConfig.Object, _mockLogger.Object, _mockServiceProvider.Object));
+        
+        Assert.Contains("must have at least one handler defined", exception.Message);
+    }
+
+    [Fact]
+    public void Constructor_WithNullHandlerNames_ThrowsException()
+    {
+        // Arrange
+        var topicSettings = new TopicSettings
+        {
+            CurrentSet = "TestSet",
+            Sets = new Dictionary<string, List<TopicSubscription>>
+            {
+                ["TestSet"] = new List<TopicSubscription>
+                {
+                    new() 
+                    { 
+                        TopicName = "test-topic", 
+                        EventType = "test.event", 
+                        HandlerNames = null // Null list
+                    }
+                }
+            }
+        };
+
+        _mockTopicConfig.Setup(x => x.Value).Returns(topicSettings);
+
+        // Act & Assert
+        var exception = Assert.Throws<InvalidOperationException>(() => 
+            new TopicResolver(_mockTopicConfig.Object, _mockLogger.Object, _mockServiceProvider.Object));
+        
+        Assert.Contains("must have at least one handler defined", exception.Message);
+    }
+
+    [Fact]
+    public void Constructor_WithNonExistentHandlerType_ThrowsException()
+    {
+        // Arrange
+        var topicSettings = new TopicSettings
+        {
+            CurrentSet = "TestSet",
+            Sets = new Dictionary<string, List<TopicSubscription>>
+            {
+                ["TestSet"] = new List<TopicSubscription>
+                {
+                    new() 
+                    { 
+                        TopicName = "test-topic", 
+                        EventType = "test.event", 
+                        HandlerNames = new[] { "NonExistentHandlerType" }
+                    }
+                }
+            }
+        };
+
+        _mockTopicConfig.Setup(x => x.Value).Returns(topicSettings);
+
+        // Act & Assert
+        var exception = Assert.Throws<InvalidOperationException>(() => 
+            new TopicResolver(_mockTopicConfig.Object, _mockLogger.Object, _mockServiceProvider.Object));
+        
+        Assert.Contains("No valid handlers found", exception.Message);
+    }
+
+    [Fact]
+    public void Constructor_WithHandlerNotImplementingIEventHandler_ThrowsException()
+    {
+        // Arrange
+        var topicSettings = new TopicSettings
+        {
+            CurrentSet = "TestSet",
+            Sets = new Dictionary<string, List<TopicSubscription>>
+            {
+                ["TestSet"] = new List<TopicSubscription>
+                {
+                    new() 
+                    { 
+                        TopicName = "test-topic", 
+                        EventType = "test.event", 
+                        HandlerNames = new[] { typeof(string).AssemblyQualifiedName } // String doesn't implement IEventHandler
+                    }
+                }
+            }
+        };
+
+        _mockTopicConfig.Setup(x => x.Value).Returns(topicSettings);
+
+        // Act & Assert
+        var exception = Assert.Throws<InvalidOperationException>(() => 
+            new TopicResolver(_mockTopicConfig.Object, _mockLogger.Object, _mockServiceProvider.Object));
+        
+        Assert.Contains("No valid handlers found", exception.Message);
+    }
+
     private static ConsumeResult<string, byte[]> CreateConsumeResult(string topic, string eventType)
     {
         var headers = new Headers();
