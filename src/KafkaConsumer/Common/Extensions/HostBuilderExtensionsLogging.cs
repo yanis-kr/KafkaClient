@@ -2,9 +2,9 @@ using Microsoft.Extensions.Hosting;
 using Serilog;
 using System.Text.RegularExpressions;
 
-namespace KafkaConsumer.Common.Logging;
+namespace KafkaConsumer.Common.Extensions;
 
-public static class LoggingConfiguration
+public static class HostBuilderExtensionsLogging
 {
     public static IHostBuilder ConfigureLogging(this IHostBuilder hostBuilder)
     {

@@ -4,7 +4,7 @@ using System.IO;
 
 namespace KafkaConsumer.Common.Extensions;
 
-public static class HostBuilderExtensions
+public static class HostBuilderExtensionsConfig
 {
     public static IHostBuilder ConfigureAppConfigurationWithUserSecrets(this IHostBuilder builder)
     {
