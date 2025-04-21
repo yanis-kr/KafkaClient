@@ -7,17 +7,17 @@ public class MockTopicConfigurations : TopicSettings
     public MockTopicConfigurations()
     {
         CurrentSet = "Set1";
-        Sets = new Dictionary<string, List<TopicConfigEntry>>
+        Sets = new Dictionary<string, List<TopicSubscription>>
         {
-            ["Set1"] = new List<TopicConfigEntry>
+            ["Set1"] = new List<TopicSubscription>
             {
-                new TopicConfigEntry
+                new TopicSubscription
                 {
                     TopicName = "topic1",
                     EventType = "test.event",
-                    HandlerName = "TestHandler"
+                    HandlerNames = ["TestHandler"]
                 }
             }
         };
     }
-} 
+}

@@ -1,5 +1,4 @@
 using KafkaConsumer.Common.Extensions;
-using KafkaConsumer.Common.Logging;
 using KafkaConsumer.Common.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;

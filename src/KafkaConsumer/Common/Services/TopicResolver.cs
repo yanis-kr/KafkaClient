@@ -20,11 +20,11 @@ namespace KafkaConsumer.Common.Services;
 public interface ITopicResolver
 {
     /// <summary>
-    /// Resolves the appropriate event handler for the given Kafka message.
+    /// Resolves the appropriate event handlers for the given Kafka message.
     /// </summary>
     /// <param name="consumeResult">The Kafka consume result containing the message</param>
-    /// <returns>The event handler if found, null otherwise</returns>
-    IEventHandler ResolveHandler(ConsumeResult<string, byte[]> consumeResult);
+    /// <returns>The event handlers if found, empty collection otherwise</returns>
+    IEnumerable<IEventHandler> ResolveHandlers(ConsumeResult<string, byte[]> consumeResult);
 }
 
 public class TopicResolver : ITopicResolver
@@ -32,11 +32,10 @@ public class TopicResolver : ITopicResolver
     private readonly IOptions<TopicSettings> _topicConfig;
     private readonly ILogger<TopicResolver> _logger;
     private readonly IServiceProvider _serviceProvider;
-    private readonly Dictionary<string, Dictionary<string, Type>> _topicEventTypeToHandler;
-    private readonly Dictionary<string, Type> _handlerTypes;
+    private readonly Dictionary<string, Dictionary<string, List<Type>>> _topicEventTypeToHandlers;
 
     public TopicResolver(
-        IOptions<TopicSettings> topicConfig, 
+        IOptions<TopicSettings> topicConfig,
         ILogger<TopicResolver> logger,
         IServiceProvider serviceProvider)
     {
@@ -44,13 +43,12 @@ public class TopicResolver : ITopicResolver
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         
-        _topicEventTypeToHandler = BuildTopicEventTypeToHandlerMap();
-        _handlerTypes = new Dictionary<string, Type>();
+        _topicEventTypeToHandlers = BuildTopicEventTypeToHandlerMap();
     }
 
-    private Dictionary<string, Dictionary<string, Type>> BuildTopicEventTypeToHandlerMap()
+    private Dictionary<string, Dictionary<string, List<Type>>> BuildTopicEventTypeToHandlerMap()
     {
-        var result = new Dictionary<string, Dictionary<string, Type>>(StringComparer.OrdinalIgnoreCase);
+        var result = new Dictionary<string, Dictionary<string, List<Type>>>(StringComparer.OrdinalIgnoreCase);
         
         var config = _topicConfig.Value;
         string currentSet = config.CurrentSet;
@@ -60,45 +58,60 @@ public class TopicResolver : ITopicResolver
             throw new InvalidOperationException($"CurrentSet '{currentSet}' is not defined in configuration.");
         }
 
-        var activeTopics = config.Sets[currentSet];
-        _logger.LogInformation("Building topic-event type map with {Count} entries", activeTopics.Count);
+        var currentSetSubscriptions = config.Sets[currentSet];
+        _logger.LogInformation("Building topic-event type map with {Count} entries", currentSetSubscriptions.Count);
 
-        foreach (var entry in activeTopics)
+        foreach (var subscription in currentSetSubscriptions)
         {
-            if (!result.ContainsKey(entry.TopicName))
+            if (!result.ContainsKey(subscription.TopicName))
             {
-                result[entry.TopicName] = new Dictionary<string, Type>(StringComparer.OrdinalIgnoreCase);
-            }
-            
-            var handlerType = Type.GetType(entry.HandlerName);
-            if (handlerType == null)
-            {
-                _logger.LogWarning("Handler type '{HandlerType}' not found for topic '{TopicName}'", 
-                    entry.HandlerName, entry.TopicName);
-                continue;
+                result[subscription.TopicName] = new Dictionary<string, List<Type>>(StringComparer.OrdinalIgnoreCase);
             }
 
-            result[entry.TopicName][entry.EventType] = handlerType;
-            _logger.LogInformation("Mapped topic '{TopicName}' with event type '{EventType}' to handler type '{HandlerType}'", 
-                entry.TopicName, entry.EventType, handlerType.Name);
+            if (!result[subscription.TopicName].ContainsKey(subscription.EventType))
+            {
+                result[subscription.TopicName][subscription.EventType] = new List<Type>();
+            }
+            if (subscription.HandlerNames is null)
+            {
+                _logger.LogWarning("Handler names are null for topic '{TopicName}' and event type '{EventType}'",
+                    subscription.TopicName, subscription.EventType);
+                subscription.HandlerNames = new List<string>();
+            }
+            foreach (var handlerName in subscription.HandlerNames)
+            {
+                var handlerType = Type.GetType(handlerName);
+                if (handlerType == null)
+                {
+                    _logger.LogWarning("Handler type '{HandlerType}' not found for topic '{TopicName}'", 
+                        handlerName, subscription.TopicName);
+                    continue;
+                }
+
+                result[subscription.TopicName][subscription.EventType].Add(handlerType);
+                _logger.LogInformation("Mapped topic '{TopicName}' with event type '{EventType}' to handler type '{HandlerType}'", 
+                    subscription.TopicName, subscription.EventType, handlerType.Name);
+            }
         }
 
         return result;
     }
 
-    public IEventHandler ResolveHandler(ConsumeResult<string, byte[]> consumeResult)
+    public IEnumerable<IEventHandler> ResolveHandlers(ConsumeResult<string, byte[]> consumeResult)
     {
         if (consumeResult?.Message?.Value == null)
         {
             _logger.LogWarning("Received null message or value");
-            return null;
+            return Enumerable.Empty<IEventHandler>();
         }
 
         var topicName = consumeResult.Topic;
         var eventType = consumeResult.ExtractEventType(_logger);
 
-        _logger.LogInformation("Resolving handler for topic: {Topic}, event type: {EventType}", 
+        _logger.LogInformation("Resolving handlers for topic: {Topic}, event type: {EventType}", 
             topicName, eventType ?? "null");
+
+        var handlers = new List<IEventHandler>();
 
         // Try to find exact match first
         var configEntry = _topicConfig.Value.Sets[_topicConfig.Value.CurrentSet]
@@ -108,22 +121,36 @@ public class TopicResolver : ITopicResolver
         {
             _logger.LogInformation("Found exact match for topic {Topic} and event type {EventType}", 
                 topicName, eventType);
-            return CreateHandler(configEntry.HandlerName);
+            foreach (var handlerName in configEntry.HandlerNames)
+            {
+                var handler = CreateHandler(handlerName);
+                if (handler != null)
+                {
+                    handlers.Add(handler);
+                }
+            }
         }
 
-        // If no exact match, try wildcard match
+        // Try wildcard match
         configEntry = _topicConfig.Value.Sets[_topicConfig.Value.CurrentSet]
             .FirstOrDefault(x => x.TopicName == topicName && x.EventType == "*");
 
         if (configEntry != null)
         {
             _logger.LogInformation("Found wildcard match for topic {Topic}", topicName);
-            return CreateHandler(configEntry.HandlerName);
+            foreach (var handlerName in configEntry.HandlerNames)
+            {
+                var handler = CreateHandler(handlerName);
+                if (handler != null)
+                {
+                    handlers.Add(handler);
+                }
+            }
         }
 
-        _logger.LogWarning("No handler found for topic {Topic} and event type {EventType}", 
-            topicName, eventType ?? "null");
-        return null;
+        _logger.LogWarning("Handlers found for topic {Topic} and event type {EventType} : {count}",
+            topicName, eventType ?? "null", handlers.Count);
+        return handlers;
     }
 
     private IEventHandler CreateHandler(string handlerTypeFullName)

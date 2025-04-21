@@ -9,6 +9,7 @@ using Microsoft.Extensions.Options;
 using Moq;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Xunit;
 
 namespace KafkaConsumer.Tests.Common.Services;
@@ -29,12 +30,29 @@ public class TopicResolverTests
         var topicSettings = new TopicSettings
         {
             CurrentSet = "TestSet",
-            Sets = new Dictionary<string, List<TopicConfigEntry>>
+            Sets = new Dictionary<string, List<TopicSubscription>>
             {
-                ["TestSet"] = new List<TopicConfigEntry>
+                ["TestSet"] = new List<TopicSubscription>
                 {
-                    new() { TopicName = "test-topic", EventType = "test.event", HandlerName = "KafkaConsumer.Features.UpdateOrder.Handlers.UpdateOrderHandler" },
-                    new() { TopicName = "wildcard-topic", EventType = "*", HandlerName = "KafkaConsumer.Features.UpdateUser.Handlers.UpdateUserHandler" }
+                    new() 
+                    { 
+                        TopicName = "test-topic", 
+                        EventType = "test.event", 
+                        HandlerNames = new[] 
+                        { 
+                            "KafkaConsumer.Features.UpdateOrder.Handlers.UpdateOrderHandler",
+                            "KafkaConsumer.Features.UpdateUser.Handlers.UpdateUserHandler"
+                        } 
+                    },
+                    new() 
+                    { 
+                        TopicName = "wildcard-topic", 
+                        EventType = "*", 
+                        HandlerNames = new[] 
+                        { 
+                            "KafkaConsumer.Features.UpdateUser.Handlers.UpdateUserHandler" 
+                        } 
+                    }
                 }
             }
         };
@@ -44,25 +62,30 @@ public class TopicResolverTests
     }
 
     [Fact]
-    public void ResolveHandler_WithExactMatch_ReturnsHandler()
+    public void ResolveHandlers_WithExactMatch_ReturnsHandlers()
     {
         // Arrange
-        var mockHandler = new Mock<IEventHandler>();
+        var mockOrderHandler = new Mock<IEventHandler>();
+        var mockUserHandler = new Mock<IEventHandler>();
+        
         _mockServiceProvider.Setup(x => x.GetService(typeof(UpdateOrderHandler)))
-            .Returns(mockHandler.Object);
+            .Returns(mockOrderHandler.Object);
+        _mockServiceProvider.Setup(x => x.GetService(typeof(UpdateUserHandler)))
+            .Returns(mockUserHandler.Object);
 
         var consumeResult = CreateConsumeResult("test-topic", "test.event");
 
         // Act
-        var result = _resolver.ResolveHandler(consumeResult);
+        var results = _resolver.ResolveHandlers(consumeResult).ToList();
 
         // Assert
-        Assert.NotNull(result);
-        Assert.Same(mockHandler.Object, result);
+        Assert.Equal(2, results.Count);
+        Assert.Contains(mockOrderHandler.Object, results);
+        Assert.Contains(mockUserHandler.Object, results);
     }
 
     [Fact]
-    public void ResolveHandler_WithWildcardMatch_ReturnsHandler()
+    public void ResolveHandlers_WithWildcardMatch_ReturnsHandlers()
     {
         // Arrange
         var mockHandler = new Mock<IEventHandler>();
@@ -72,24 +95,24 @@ public class TopicResolverTests
         var consumeResult = CreateConsumeResult("wildcard-topic", "test.something");
 
         // Act
-        var result = _resolver.ResolveHandler(consumeResult);
+        var results = _resolver.ResolveHandlers(consumeResult).ToList();
 
         // Assert
-        Assert.NotNull(result);
-        Assert.Same(mockHandler.Object, result);
+        Assert.Single(results);
+        Assert.Same(mockHandler.Object, results[0]);
     }
 
     [Fact]
-    public void ResolveHandler_WithNoMatch_ReturnsNull()
+    public void ResolveHandlers_WithNoMatch_ReturnsEmptyCollection()
     {
         // Arrange
         var consumeResult = CreateConsumeResult("unknown-topic", "unknown.event");
 
         // Act
-        var result = _resolver.ResolveHandler(consumeResult);
+        var results = _resolver.ResolveHandlers(consumeResult).ToList();
 
         // Assert
-        Assert.Null(result);
+        Assert.Empty(results);
     }
 
     private static ConsumeResult<string, byte[]> CreateConsumeResult(string topic, string eventType)

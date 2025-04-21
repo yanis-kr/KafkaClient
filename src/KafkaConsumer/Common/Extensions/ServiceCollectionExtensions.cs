@@ -11,14 +11,18 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection RegisterEventHandlers(this IServiceCollection services)
     {
-        // Discover and register all IEventHandler implementations
-        Assembly assembly = Assembly.GetExecutingAssembly();
-        var handlerTypes = assembly.GetTypes().Where(t =>
-            typeof(IEventHandler).IsAssignableFrom(t) && !t.IsInterface && !t.IsAbstract);
+        // Discover and register all IEventHandler implementations from all loaded assemblies
+        var handlerTypes = System.AppDomain.CurrentDomain.GetAssemblies()
+            .SelectMany(a => a.GetTypes())
+            .Where(t => typeof(IEventHandler).IsAssignableFrom(t) && !t.IsInterface && !t.IsAbstract);
+
         foreach (var type in handlerTypes)
         {
+            // Register both the concrete type and the interface
             services.AddScoped(type);
+            services.AddScoped(typeof(IEventHandler), type);
         }
+
         return services;
     }
 

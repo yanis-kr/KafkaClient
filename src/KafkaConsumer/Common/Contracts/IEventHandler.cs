@@ -8,7 +8,6 @@ namespace KafkaConsumer.Common.Contracts;
 /// </summary>
 public interface IEventHandler
 {
-    public string Name { get; }
     /// <summary>
     /// Processes a Kafka message
     /// </summary>

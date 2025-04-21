@@ -6,6 +6,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using KafkaConsumer.Common.Extensions;
 
 namespace KafkaConsumer.Features.UpdateOrder.Handlers;
 
@@ -18,10 +19,12 @@ public class UpdateOrderHandler : IEventHandler
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
-    public string Name => "UpdateOrder";
+    //public string Name => "UpdateOrder";
 
     public async Task<bool> ProcessEvent(ConsumeResult<string, byte[]> consumeResult)
     {
+        consumeResult.LogMessageContent(_logger, this.ToString());
+
         try
         {
             var message = consumeResult.Message;
@@ -35,13 +38,6 @@ public class UpdateOrderHandler : IEventHandler
             {
                 headerStrings.Add($"{header.Key}={Encoding.UTF8.GetString(header.GetValueBytes())}");
             }
-
-            _logger.LogInformation(
-                "Received message from topic {Topic}, partition {Partition}, offset {Offset}. " +
-                "Headers: {Headers}, Value length: {ValueLength} bytes",
-                topic, partition, offset,
-                string.Join(", ", headerStrings),
-                message.Value?.Length ?? 0);
 
             if (message.Value == null || message.Value.Length == 0)
             {

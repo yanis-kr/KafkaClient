@@ -61,14 +61,28 @@ public class KafkaListenerService : BackgroundService
                         continue;
                     }
 
-                    var handler = _topicResolver.ResolveHandler(consumeResult);
-                    if (handler == null)
+                    var handlers = _topicResolver.ResolveHandlers(consumeResult);
+                    if (!handlers.Any())
                     {
-                        _logger.LogWarning("No handler found for message from topic {Topic}", consumeResult.Topic);
+                        _logger.LogWarning("No handlers found for message from topic {Topic}", consumeResult.Topic);
                         continue;
                     }
 
-                    await handler.ProcessEvent(consumeResult);
+                    foreach (var handler in handlers)
+                    {
+                        try
+                        {
+                            await handler.ProcessEvent(consumeResult);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "Error processing message with handler {HandlerType}", handler.GetType().Name);
+                        }
+                    }
+
+                    // Commit the offset if auto-commit is disabled
+                    _consumer.Commit(consumeResult);
+
                 }
                 catch (ConsumeException ex)
                 {
