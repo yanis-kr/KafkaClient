@@ -63,15 +63,18 @@ public class TopicResolver : ITopicResolver
 
         foreach (var subscription in currentSetSubscriptions)
         {
-            if (!result.ContainsKey(subscription.TopicName))
+            if (!result.TryGetValue(subscription.TopicName, out var topicDict))
             {
-                result[subscription.TopicName] = new Dictionary<string, List<Type>>(StringComparer.OrdinalIgnoreCase);
+                topicDict = new Dictionary<string, List<Type>>(StringComparer.OrdinalIgnoreCase);
+                result[subscription.TopicName] = topicDict;
             }
 
-            if (!result[subscription.TopicName].ContainsKey(subscription.EventType))
+            if (!topicDict.TryGetValue(subscription.EventType, out var handlerList))
             {
-                result[subscription.TopicName][subscription.EventType] = new List<Type>();
+                handlerList = new List<Type>();
+                topicDict[subscription.EventType] = handlerList;
             }
+
             if (subscription.HandlerNames is null)
             {
                 _logger.LogWarning("Handler names are null for topic '{TopicName}' and event type '{EventType}'",
@@ -88,7 +91,7 @@ public class TopicResolver : ITopicResolver
                     continue;
                 }
 
-                result[subscription.TopicName][subscription.EventType].Add(handlerType);
+                handlerList.Add(handlerType);
                 _logger.LogInformation("Mapped topic '{TopicName}' with event type '{EventType}' to handler type '{HandlerType}'", 
                     subscription.TopicName, subscription.EventType, handlerType.Name);
             }
@@ -163,7 +166,17 @@ public class TopicResolver : ITopicResolver
 
         try
         {
+            // First try direct Type.GetType
             var handlerType = Type.GetType(handlerTypeFullName);
+            
+            // If that fails, try searching through loaded assemblies
+            if (handlerType == null)
+            {
+                handlerType = AppDomain.CurrentDomain.GetAssemblies()
+                    .Select(a => a.GetType(handlerTypeFullName))
+                    .FirstOrDefault(t => t != null);
+            }
+
             if (handlerType == null)
             { 
                 _logger.LogError("Handler type not found for name: {HandlerTypeName}", handlerTypeFullName);
