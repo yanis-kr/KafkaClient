@@ -12,8 +12,8 @@ public class MockTopicResolver : ITopicResolver
         return true;
     }
 
-    public IEventHandler? ResolveHandler(ConsumeResult<string, byte[]> consumeResult)
+    public IEnumerable<IEventHandler> ResolveHandlers(ConsumeResult<string, byte[]> consumeResult)
     {
-        return null;
+        return Enumerable.Empty<IEventHandler>();
     }
 } 

@@ -30,13 +30,13 @@ public class KafkaListenerServiceTests
 
         _topicConfig = new TopicSettings
         {
-            CurrentSet = "Development",
-            Sets = new Dictionary<string, List<TopicConfigEntry>>
+            CurrentSet = "Set1",
+            Sets = new Dictionary<string, List<TopicSubscription>>
             {
-                ["Development"] = new List<TopicConfigEntry>
+                ["Set1"] = new List<TopicSubscription>
                 {
-                    new() { TopicName = "topic_1", EventType = "user.created", HandlerName = "UpdateUser" },
-                    new() { TopicName = "topic_2", EventType = "order.created", HandlerName = "UpdateOrder" }
+                    new() { TopicName = "topic_1", EventType = "user.created", HandlerNames = ["UpdateUser"] },
+                    new() { TopicName = "topic_2", EventType = "order.created", HandlerNames = ["UpdateOrder"] }
                 }
             }
         };
@@ -69,7 +69,7 @@ public class KafkaListenerServiceTests
         await service.StartAsync(cts.Token);
 
         // Assert
-        _mockTopicResolver.Verify(x => x.ResolveHandler(It.IsAny<ConsumeResult<string, byte[]>>()), Times.Never);
+        _mockTopicResolver.Verify(x => x.ResolveHandlers(It.IsAny<ConsumeResult<string, byte[]>>()), Times.Never);
     }
 
     [Fact]

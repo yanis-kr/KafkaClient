@@ -22,8 +22,9 @@ public class ServiceCollectionExtensionsTests : IClassFixture<HostFixture>
         var handlers = _host.Services.GetServices<IEventHandler>().ToList();
 
         Assert.NotEmpty(handlers);
-        Assert.Contains(handlers, h => h.Name == "UpdateOrder");
-        Assert.Contains(handlers, h => h.Name == "UpdateUser");
+        //var n = nameof(handlers[1]);
+        Assert.Contains(handlers, h => h.GetType().Name == "UpdateUserHandler");
+        Assert.Contains(handlers, h => h.GetType().Name == "UpdateOrderHandler");
     }
 
     [Fact]
@@ -33,10 +34,10 @@ public class ServiceCollectionExtensionsTests : IClassFixture<HostFixture>
         var services = new ServiceCollection();
         var configurationValues = new Dictionary<string, string?>
         {
-            { "TopicConfigurations:CurrentSet", "Development" },
-            { "TopicConfigurations:Sets:Development:0:TopicName", "topic_1" },
-            { "TopicConfigurations:Sets:Development:0:EventType", "user.created" },
-            { "TopicConfigurations:Sets:Development:0:HandlerName", "UpdateUser" },
+            { "TopicConfigurations:CurrentSet", "Set1" },
+            { "TopicConfigurations:Sets:Set1:0:TopicName", "topic_1" },
+            { "TopicConfigurations:Sets:Set1:0:EventType", "user.created" },
+            { "TopicConfigurations:Sets:Set1:0:HandlerName", "UpdateUser" },
             { "Kafka:BootstrapServers", "localhost:9092" },
             { "Kafka:GroupId", "test-group" }
         };
@@ -55,7 +56,7 @@ public class ServiceCollectionExtensionsTests : IClassFixture<HostFixture>
 
         Assert.NotNull(topicConfig);
         Assert.NotNull(kafkaSettings);
-        Assert.Equal("Development", topicConfig.Value.CurrentSet);
+        Assert.Equal("Set1", topicConfig.Value.CurrentSet);
         Assert.Equal("localhost:9092", kafkaSettings.Value.BootstrapServers);
     }
 } 
