@@ -1,5 +1,7 @@
 using Confluent.Kafka;
 using KafkaConsumer.Common.Contracts;
+using KafkaConsumer.Features.UpdateOrder.Contracts;
+using KafkaConsumer.Features.UpdateOrder.Models;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Text;
@@ -13,9 +15,13 @@ namespace KafkaConsumer.Features.UpdateOrder.Handlers;
 public class UpdateOrderHandler : IEventHandler
 {
     private readonly ILogger<UpdateOrderHandler> _logger;
+    private readonly IOrderApi _orderApi;
 
-    public UpdateOrderHandler(ILogger<UpdateOrderHandler> logger)
+    public UpdateOrderHandler(
+        IOrderApi orderApi,
+        ILogger<UpdateOrderHandler> logger)
     {
+        _orderApi = orderApi ?? throw new ArgumentNullException(nameof(orderApi));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -29,16 +35,7 @@ public class UpdateOrderHandler : IEventHandler
         {
             var message = consumeResult.Message;
             var topic = consumeResult.Topic;
-            var partition = consumeResult.Partition;
-            var offset = consumeResult.Offset;
-
-            // Log the raw message for debugging
-            var headerStrings = new List<string>();
-            foreach (var header in message.Headers)
-            {
-                headerStrings.Add($"{header.Key}={Encoding.UTF8.GetString(header.GetValueBytes())}");
-            }
-
+            
             if (message.Value == null || message.Value.Length == 0)
             {
                 _logger.LogWarning("Received empty message from topic {Topic}", topic);
@@ -47,29 +44,32 @@ public class UpdateOrderHandler : IEventHandler
 
             // Try to detect if the message is JSON or binary
             bool isJson = IsJsonMessage(message.Value);
-            string content = isJson 
-                ? Encoding.UTF8.GetString(message.Value)
-                : Convert.ToBase64String(message.Value);
-
-            _logger.LogInformation(
-                "Message content ({Format}): {Content}",
-                isJson ? "JSON" : "Binary",
-                content);
-
-            if (isJson)
+            if (!isJson)
             {
-                // Handle JSON message
-                var orderUpdate = JsonSerializer.Deserialize<OrderUpdate>(content);
-                _logger.LogInformation("Processing order update: OrderId={OrderId}, Status={Status}",
-                    orderUpdate.OrderId, orderUpdate.Status);
-                // Process the order update...
+                _logger.LogWarning("Received non-JSON message, cannot process");
+                return false;
             }
-            else
+            
+            string content = Encoding.UTF8.GetString(message.Value);
+            
+            _logger.LogInformation("Message content: {Content}", content);
+
+            // Deserialize the update order event
+            var orderUpdate = JsonSerializer.Deserialize<UpdateOrderEvent>(content);
+            
+            _logger.LogInformation("Processing order update: OrderId={OrderId}, Status={Status}",
+                orderUpdate.OrderId, orderUpdate.Status);
+            
+            // Call the external API to update the order
+            await _orderApi.UpdateOrderAsync(orderUpdate.OrderId, new OrderUpdateRequest
             {
-                // Handle binary message
-                _logger.LogInformation("Processing binary message of length {Length} bytes", message.Value.Length);
-                // Process the binary message...
-            }
+                Status = orderUpdate.Status,
+                OrderNumber = orderUpdate.OrderNumber,
+                Amount = orderUpdate.Amount
+            });
+            
+            _logger.LogInformation("Successfully updated order {OrderId} with status {Status}", 
+                orderUpdate.OrderId, orderUpdate.Status);
 
             return true;
         }

@@ -1,4 +1,5 @@
 using Confluent.Kafka;
+using KafkaConsumer.Features.UpdateOrder.Contracts;
 using KafkaConsumer.Features.UpdateOrder.Handlers;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -10,12 +11,14 @@ namespace KafkaConsumer.Tests.Features.Order;
 public class UpdateOrderHandlerTests
 {
     private readonly Mock<ILogger<UpdateOrderHandler>> _mockLogger;
+    private Mock<IOrderApi> _mockOrderApi;
     private readonly UpdateOrderHandler _handler;
 
     public UpdateOrderHandlerTests()
     {
         _mockLogger = new Mock<ILogger<UpdateOrderHandler>>();
-        _handler = new UpdateOrderHandler(_mockLogger.Object);
+        _mockOrderApi = new Mock<IOrderApi>();
+        _handler = new UpdateOrderHandler(_mockOrderApi.Object, _mockLogger.Object);
     }
 
     [Fact]

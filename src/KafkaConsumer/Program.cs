@@ -9,6 +9,8 @@ var builder = Host.CreateDefaultBuilder(args)
     .ConfigureServices((context, services) => services
         .AddOptionsConfigurations(context.Configuration)
         .RegisterEventHandlers()
+        .AddOktaAuthentication()
+        .AddApiClients(context.Configuration)
         .AddSingleton<ITopicResolver, TopicResolver>()
         .AddHostedService<KafkaListenerService>());
 
