@@ -4,6 +4,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using System.Linq;
 using System.Reflection;
+using Confluent.SchemaRegistry;
+using Confluent.SchemaRegistry.Serdes;
+using Microsoft.Extensions.Options;
 
 namespace KafkaConsumer.Common.Extensions;
 
@@ -32,6 +35,27 @@ public static class ServiceCollectionExtensions
         services.Configure<ExternalSystemsSettings>(config.GetSection("ExternalSystems"));
         services.Configure<TopicSettings>(config.GetSection("TopicConfigurations"));
         services.Configure<KafkaSettings>(config.GetSection("Kafka"));
+
+        // Register SchemaRegistry client
+        services.AddSingleton<ISchemaRegistryClient>(sp =>
+        {
+            var kafkaSettings = sp.GetRequiredService<IOptions<KafkaSettings>>().Value;
+            var schemaRegistryConfig = new SchemaRegistryConfig
+            {
+                Url = kafkaSettings.SchemaRegistryUrl
+            };
+
+            if (!string.IsNullOrEmpty(kafkaSettings.SchemaRegistryAuthKey) && 
+                !string.IsNullOrEmpty(kafkaSettings.SchemaRegistryAuthSecret))
+            {
+                //schemaRegistryConfig.BasicAuthCredentialsInfo = new BasicAuthCredentialsInfo(
+                //    kafkaSettings.SchemaRegistryAuthKey,
+                //    kafkaSettings.SchemaRegistryAuthSecret);
+            }
+
+            return new CachedSchemaRegistryClient(schemaRegistryConfig);
+        });
+
         return services;
     }
 } 

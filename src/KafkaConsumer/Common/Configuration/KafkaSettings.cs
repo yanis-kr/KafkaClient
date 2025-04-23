@@ -15,5 +15,9 @@ public class KafkaSettings
 
     public bool EnableAutoCommit { get; set; } = true;  // Default auto-commit setting
 
+    // Schema Registry settings
+    public string SchemaRegistryUrl { get; set; } = string.Empty;
+    public string SchemaRegistryAuthKey { get; set; } = string.Empty;
+    public string SchemaRegistryAuthSecret { get; set; } = string.Empty;
 }
 
