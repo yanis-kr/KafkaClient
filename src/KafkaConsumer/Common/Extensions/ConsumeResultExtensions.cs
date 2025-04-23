@@ -4,16 +4,26 @@ using System.Text;
 using System;
 using Microsoft.Extensions.Logging;
 using System.Linq;
+using Microsoft.Extensions.Options;
+using KafkaConsumer.Common.Configuration;
 
 namespace KafkaConsumer.Common.Extensions;
 
 public static class ConsumeResultExtensions
 {
+    private static IOptions<TopicSettings>? _topicConfig;
+
+    public static void Initialize(IOptions<TopicSettings> topicConfig)
+    {
+        _topicConfig = topicConfig;
+    }
+
     public static string ExtractEventType(this ConsumeResult<string, byte[]> consumeResult, ILogger logger = null)
     {
         return ExtractTypeFromHeaders(consumeResult, logger)
                ?? ExtractTypeFromCloudEvent(consumeResult, logger)
-               ?? ExtractTypeFromJson(consumeResult, logger);
+               ?? ExtractTypeFromJson(consumeResult, logger)
+               ?? ExtractTypeFromConfiguration(consumeResult, logger);
     }
 
     private static string ExtractTypeFromHeaders(ConsumeResult<string, byte[]> consumeResult, ILogger logger)
@@ -78,6 +88,53 @@ public static class ConsumeResultExtensions
 
         logger?.LogInformation("Could not determine event type.");
         return null;
+    }
+
+    private static string ExtractTypeFromConfiguration(ConsumeResult<string, byte[]> consumeResult, ILogger logger)
+    {
+        if (_topicConfig == null)
+        {
+            logger?.LogWarning("Topic configuration not initialized. Cannot extract event type from configuration.");
+            return null;
+        }
+
+        try
+        {
+            var messageContent = Encoding.UTF8.GetString(consumeResult.Message.Value);
+            var currentSet = _topicConfig.Value.CurrentSet;
+            var subscriptions = _topicConfig.Value.Sets[currentSet];
+
+            // Get all unique event types from configuration (excluding wildcard *)
+            var eventTypes = subscriptions
+                .Where(s => s.TopicName == consumeResult.Topic && s.EventType != "*")
+                .Select(s => s.EventType)
+                .Distinct()
+                .ToList();
+
+            if (!eventTypes.Any())
+            {
+                logger?.LogDebug("No event types found in configuration for topic {Topic}", consumeResult.Topic);
+                return null;
+            }
+
+            // Check if message content contains any of the configured event types
+            foreach (var eventType in eventTypes)
+            {
+                if (messageContent.Contains(eventType, StringComparison.OrdinalIgnoreCase))
+                {
+                    logger?.LogDebug("Found event type in message content: {EventType}", eventType);
+                    return eventType;
+                }
+            }
+
+            logger?.LogDebug("No matching event type found in message content for topic {Topic}", consumeResult.Topic);
+            return null;
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "Error extracting event type from configuration");
+            return null;
+        }
     }
 
     public static void LogMessageContent(

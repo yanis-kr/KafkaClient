@@ -37,9 +37,11 @@ public class KafkaListenerService : BackgroundService
 
         // Create the Kafka consumer (ignoring message key, using byte[] for value)
         _consumer = new ConsumerBuilder<string, byte[]>(consumerConfig)
-            .SetErrorHandler((_, e) =>
-                _logger.LogError("Kafka Error: {Reason}", e.Reason))
+            .SetErrorHandler((_, e) => _logger.LogError(e.Reason))
             .Build();
+
+        // Initialize ConsumeResultExtensions with topic configuration
+        ConsumeResultExtensions.Initialize(_topicConfig);
 
         // Determine topics to subscribe (from active config set)
         string currentSet = _topicConfig.Value.CurrentSet;
