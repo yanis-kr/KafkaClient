@@ -13,7 +13,7 @@ public static class FakeKafkaMessageHelper
     public static ConsumeResult<string, byte[]> CreateFakeConsumeResult<T>(
         T payload, 
         string topic = "order-updates", 
-        string key = null,
+        string? key = null,
         int partition = 0,
         long offset = 0) where T : class
     {
@@ -50,7 +50,7 @@ public static class FakeKafkaMessageHelper
     /// </summary>
     public static ConsumeResult<string, byte[]> CreateInvalidConsumeResult(
         string topic = "order-updates",
-        string key = null,
+        string? key = null,
         int partition = 0, 
         long offset = 0)
     {
@@ -74,7 +74,7 @@ public static class FakeKafkaMessageHelper
     /// </summary>
     public static ConsumeResult<string, byte[]> CreateEmptyConsumeResult(
         string topic = "order-updates",
-        string key = null,
+        string? key = null,
         int partition = 0,
         long offset = 0)
     {

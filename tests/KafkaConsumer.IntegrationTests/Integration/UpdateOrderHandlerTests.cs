@@ -16,14 +16,13 @@ using Xunit;
 
 namespace KafkaConsumer.IntegrationTests.Integration;
 
-[Collection("Integration tests")]
-public class UpdateOrderHandlerTests
+public class UpdateOrderHandlerTests : IClassFixture<KafkaConsumerTestFixture>
 {
-    private readonly IntegrationTestFixture _fixture;
+    private readonly KafkaConsumerTestFixture _fixture;
     private readonly HttpClient _httpClient;
     private readonly Mock<HttpMessageHandler> _mockHttpMessageHandler;
 
-    public UpdateOrderHandlerTests(IntegrationTestFixture fixture)
+    public UpdateOrderHandlerTests(KafkaConsumerTestFixture fixture)
     {
         _fixture = fixture;
         
@@ -77,7 +76,7 @@ public class UpdateOrderHandlerTests
         });
         
         // Get the logger from the main fixture
-        var logger = _fixture.ServiceProvider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<UpdateOrderHandler>>();
+        var logger = _fixture.Services.GetRequiredService<Microsoft.Extensions.Logging.ILogger<UpdateOrderHandler>>();
         services.AddSingleton(logger);
         
         // Build a service provider with our mocked services
@@ -116,7 +115,7 @@ public class UpdateOrderHandlerTests
         var consumeResult = FakeKafkaMessageHelper.CreateInvalidConsumeResult();
         
         // Use the real handler from DI
-        var handler = _fixture.ServiceProvider.GetRequiredService<UpdateOrderHandler>();
+        var handler = _fixture.Services.GetRequiredService<UpdateOrderHandler>();
         
         // Act
         var result = await handler.ProcessEvent(consumeResult);
@@ -133,7 +132,7 @@ public class UpdateOrderHandlerTests
         var consumeResult = FakeKafkaMessageHelper.CreateEmptyConsumeResult();
         
         // Use the real handler from DI
-        var handler = _fixture.ServiceProvider.GetRequiredService<UpdateOrderHandler>();
+        var handler = _fixture.Services.GetRequiredService<UpdateOrderHandler>();
         
         // Act
         var result = await handler.ProcessEvent(consumeResult);
@@ -160,7 +159,7 @@ public class UpdateOrderHandlerTests
         var consumeResult = FakeKafkaMessageHelper.CreateFakeConsumeResult(orderEvent, "order-updates");
         
         // Get topic resolver from DI
-        var topicResolver = _fixture.ServiceProvider.GetRequiredService<ITopicResolver>();
+        var topicResolver = _fixture.Services.GetRequiredService<ITopicResolver>();
         
         // Act
         // Resolve handlers for the message

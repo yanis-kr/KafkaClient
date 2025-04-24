@@ -12,12 +12,11 @@ using Xunit;
 
 namespace KafkaConsumer.IntegrationTests.Integration;
 
-[Collection("Integration tests")]
-public class OktaTokenProviderIntegrationTests
+public class OktaTokenProviderIntegrationTests : IClassFixture<KafkaConsumerTestFixture>
 {
-    private readonly IntegrationTestFixture _fixture;
+    private readonly KafkaConsumerTestFixture _fixture;
     
-    public OktaTokenProviderIntegrationTests(IntegrationTestFixture fixture)
+    public OktaTokenProviderIntegrationTests(KafkaConsumerTestFixture fixture)
     {
         _fixture = fixture;
     }
@@ -67,8 +66,8 @@ public class OktaTokenProviderIntegrationTests
         });
         
         // Add other required services from the main fixture
-        services.AddSingleton(_fixture.ServiceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<KafkaConsumer.Common.Configuration.OktaSettings>>());
-        services.AddSingleton(_fixture.ServiceProvider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<KafkaConsumer.Common.Services.OktaTokenProvider>>());
+        services.AddSingleton(_fixture.Services.GetRequiredService<Microsoft.Extensions.Options.IOptions<KafkaConsumer.Common.Configuration.OktaSettings>>());
+        services.AddSingleton(_fixture.Services.GetRequiredService<Microsoft.Extensions.Logging.ILogger<KafkaConsumer.Common.Services.OktaTokenProvider>>());
         
         // Add the token provider
         services.AddSingleton<IOktaTokenProvider, KafkaConsumer.Common.Services.OktaTokenProvider>();

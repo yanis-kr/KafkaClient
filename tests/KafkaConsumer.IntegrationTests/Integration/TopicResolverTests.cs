@@ -9,20 +9,19 @@ using Xunit;
 
 namespace KafkaConsumer.IntegrationTests.Integration;
 
-[Collection("Integration tests")]
-public class TopicResolverTests
+public class TopicResolverTests : IClassFixture<KafkaConsumerTestFixture>
 {
-    private readonly IntegrationTestFixture _fixture;
+    private readonly KafkaConsumerTestFixture _fixture;
     private readonly ITopicResolver _topicResolver;
 
-    public TopicResolverTests(IntegrationTestFixture fixture)
+    public TopicResolverTests(KafkaConsumerTestFixture fixture)
     {
         _fixture = fixture;
-        _topicResolver = _fixture.ServiceProvider.GetRequiredService<ITopicResolver>();
+        _topicResolver = _fixture.Services.GetRequiredService<ITopicResolver>();
     }
 
     [Fact]
-    public async Task TopicResolver_ResolveHandlers_ShouldReturnCorrectHandlers()
+    public void TopicResolver_ResolveHandlers_ShouldReturnCorrectHandlers()
     {
         // Arrange - Create a fake order update event
         var orderEvent = new UpdateOrderEvent
@@ -49,7 +48,7 @@ public class TopicResolverTests
     }
 
     [Fact]
-    public async Task TopicResolver_ResolveHandlers_ShouldWorkWithEvents()
+    public void TopicResolver_ResolveHandlers_ShouldWorkWithEvents()
     {
         // Arrange - Create a consume result with CloudEvent format
         var cloudEventHeaders = new Headers
