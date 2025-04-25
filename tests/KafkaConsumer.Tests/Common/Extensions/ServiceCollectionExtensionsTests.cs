@@ -36,7 +36,7 @@ public class ServiceCollectionExtensionsTests : IClassFixture<HostFixture>
         {
             { "TopicConfigurations:CurrentSet", "Set1" },
             { "TopicConfigurations:Sets:Set1:0:TopicName", "topic_1" },
-            { "TopicConfigurations:Sets:Set1:0:EventType", "user.created" },
+            { "TopicConfigurations:Sets:Set1:0:EventTypes:0", "user.created" },
             { "TopicConfigurations:Sets:Set1:0:HandlerName", "UpdateUser" },
             { "Kafka:BootstrapServers", "localhost:9092" },
             { "Kafka:GroupId", "test-group" }

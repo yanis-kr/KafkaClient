@@ -35,8 +35,8 @@ public class KafkaListenerServiceTests
             {
                 ["Set1"] = new List<TopicSubscription>
                 {
-                    new() { TopicName = "topic_1", EventType = "user.created", HandlerNames = ["UpdateUser"] },
-                    new() { TopicName = "topic_2", EventType = "order.created", HandlerNames = ["UpdateOrder"] }
+                    new() { TopicName = "topic_1", EventTypes = new[] { "user.created" }, HandlerNames = ["UpdateUser"] },
+                    new() { TopicName = "topic_2", EventTypes = new[] { "order.created" }, HandlerNames = ["UpdateOrder"] }
                 }
             }
         };

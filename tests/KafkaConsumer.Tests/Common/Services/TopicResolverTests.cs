@@ -37,7 +37,7 @@ public class TopicResolverTests
                     new() 
                     { 
                         TopicName = "test-topic", 
-                        EventType = "test.event", 
+                        EventTypes = new[] { "test.event" }, 
                         HandlerNames = new[] 
                         { 
                             "KafkaConsumer.Features.UpdateOrder.Handlers.UpdateOrderHandler",
@@ -47,10 +47,19 @@ public class TopicResolverTests
                     new() 
                     { 
                         TopicName = "wildcard-topic", 
-                        EventType = "*", 
+                        EventTypes = new[] { "*" }, 
                         HandlerNames = new[] 
                         { 
                             "KafkaConsumer.Features.UpdateUser.Handlers.UpdateUserHandler" 
+                        } 
+                    },
+                    new() 
+                    { 
+                        TopicName = "multi-event-topic", 
+                        EventTypes = new[] { "event.one", "event.two" }, 
+                        HandlerNames = new[] 
+                        { 
+                            "KafkaConsumer.Features.UpdateOrder.Handlers.UpdateOrderHandler" 
                         } 
                     }
                 }
@@ -103,6 +112,27 @@ public class TopicResolverTests
     }
 
     [Fact]
+    public void ResolveHandlers_WithMultipleEventTypes_ReturnsCorrectHandlers()
+    {
+        // Arrange
+        var mockHandler = new Mock<IEventHandler>();
+        _mockServiceProvider.Setup(x => x.GetService(typeof(UpdateOrderHandler)))
+            .Returns(mockHandler.Object);
+
+        // Test with first event type
+        var consumeResult1 = CreateConsumeResult("multi-event-topic", "event.one");
+        var results1 = _resolver.ResolveHandlers(consumeResult1).ToList();
+        Assert.Single(results1);
+        Assert.Same(mockHandler.Object, results1[0]);
+
+        // Test with second event type
+        var consumeResult2 = CreateConsumeResult("multi-event-topic", "event.two");
+        var results2 = _resolver.ResolveHandlers(consumeResult2).ToList();
+        Assert.Single(results2);
+        Assert.Same(mockHandler.Object, results2[0]);
+    }
+
+    [Fact]
     public void ResolveHandlers_WithNoMatch_ReturnsEmptyCollection()
     {
         // Arrange
@@ -129,7 +159,7 @@ public class TopicResolverTests
                     new() 
                     { 
                         TopicName = "test-topic", 
-                        EventType = "test.event", 
+                        EventTypes = new[] { "test.event" }, 
                         HandlerNames = new List<string>() // Empty list
                     }
                 }
@@ -159,7 +189,7 @@ public class TopicResolverTests
                     new() 
                     { 
                         TopicName = "test-topic", 
-                        EventType = "test.event", 
+                        EventTypes = new[] { "test.event" }, 
                         HandlerNames = null // Null list
                     }
                 }
@@ -176,6 +206,66 @@ public class TopicResolverTests
     }
 
     [Fact]
+    public void Constructor_WithEmptyEventTypes_ThrowsException()
+    {
+        // Arrange
+        var topicSettings = new TopicSettings
+        {
+            CurrentSet = "TestSet",
+            Sets = new Dictionary<string, List<TopicSubscription>>
+            {
+                ["TestSet"] = new List<TopicSubscription>
+                {
+                    new() 
+                    { 
+                        TopicName = "test-topic", 
+                        EventTypes = new List<string>(), // Empty list
+                        HandlerNames = new[] { "KafkaConsumer.Features.UpdateOrder.Handlers.UpdateOrderHandler" }
+                    }
+                }
+            }
+        };
+
+        _mockTopicConfig.Setup(x => x.Value).Returns(topicSettings);
+
+        // Act & Assert
+        var exception = Assert.Throws<InvalidOperationException>(() => 
+            new TopicResolver(_mockTopicConfig.Object, _mockLogger.Object, _mockServiceProvider.Object));
+        
+        Assert.Contains("must have at least one event type defined", exception.Message);
+    }
+
+    [Fact]
+    public void Constructor_WithNullEventTypes_ThrowsException()
+    {
+        // Arrange
+        var topicSettings = new TopicSettings
+        {
+            CurrentSet = "TestSet",
+            Sets = new Dictionary<string, List<TopicSubscription>>
+            {
+                ["TestSet"] = new List<TopicSubscription>
+                {
+                    new() 
+                    { 
+                        TopicName = "test-topic", 
+                        EventTypes = null, // Null list
+                        HandlerNames = new[] { "KafkaConsumer.Features.UpdateOrder.Handlers.UpdateOrderHandler" }
+                    }
+                }
+            }
+        };
+
+        _mockTopicConfig.Setup(x => x.Value).Returns(topicSettings);
+
+        // Act & Assert
+        var exception = Assert.Throws<InvalidOperationException>(() => 
+            new TopicResolver(_mockTopicConfig.Object, _mockLogger.Object, _mockServiceProvider.Object));
+        
+        Assert.Contains("must have at least one event type defined", exception.Message);
+    }
+
+    [Fact]
     public void Constructor_WithNonExistentHandlerType_ThrowsException()
     {
         // Arrange
@@ -189,7 +279,7 @@ public class TopicResolverTests
                     new() 
                     { 
                         TopicName = "test-topic", 
-                        EventType = "test.event", 
+                        EventTypes = new[] { "test.event" }, 
                         HandlerNames = new[] { "NonExistentHandlerType" }
                     }
                 }
@@ -219,7 +309,7 @@ public class TopicResolverTests
                     new() 
                     { 
                         TopicName = "test-topic", 
-                        EventType = "test.event", 
+                        EventTypes = new[] { "test.event" }, 
                         HandlerNames = new[] { typeof(string).AssemblyQualifiedName } // String doesn't implement IEventHandler
                     }
                 }

@@ -14,7 +14,7 @@ public class MockTopicConfigurations : TopicSettings
                 new TopicSubscription
                 {
                     TopicName = "topic1",
-                    EventType = "test.event",
+                    EventTypes = new[] { "test.event" },
                     HandlerNames = ["TestHandler"]
                 }
             }

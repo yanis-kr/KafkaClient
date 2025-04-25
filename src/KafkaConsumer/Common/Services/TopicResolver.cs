@@ -67,7 +67,14 @@ public class TopicResolver : ITopicResolver
             if (subscription.HandlerNames == null || !subscription.HandlerNames.Any())
             {
                 throw new InvalidOperationException(
-                    $"Topic '{subscription.TopicName}' with event type '{subscription.EventType}' must have at least one handler defined.");
+                    $"Topic '{subscription.TopicName}' must have at least one handler defined.");
+            }
+
+            // Validate that each subscription has at least one event type
+            if (subscription.EventTypes == null || !subscription.EventTypes.Any())
+            {
+                throw new InvalidOperationException(
+                    $"Topic '{subscription.TopicName}' must have at least one event type defined.");
             }
 
             if (!result.TryGetValue(subscription.TopicName, out var topicDict))
@@ -76,44 +83,47 @@ public class TopicResolver : ITopicResolver
                 result[subscription.TopicName] = topicDict;
             }
 
-            if (!topicDict.TryGetValue(subscription.EventType, out var handlerList))
+            foreach (var eventType in subscription.EventTypes)
             {
-                handlerList = new List<Type>();
-                topicDict[subscription.EventType] = handlerList;
-            }
-
-            // Track if at least one valid handler was found for this subscription
-            bool hasValidHandler = false;
-
-            foreach (var handlerName in subscription.HandlerNames)
-            {
-                var handlerType = Type.GetType(handlerName);
-                if (handlerType == null)
+                if (!topicDict.TryGetValue(eventType, out var handlerList))
                 {
-                    _logger.LogError("Handler type '{HandlerType}' not found for topic '{TopicName}' and event type '{EventType}'", 
-                        handlerName, subscription.TopicName, subscription.EventType);
-                    continue;
+                    handlerList = new List<Type>();
+                    topicDict[eventType] = handlerList;
                 }
 
-                // Validate that the handler implements IEventHandler
-                if (!typeof(IEventHandler).IsAssignableFrom(handlerType))
+                // Track if at least one valid handler was found for this subscription
+                bool hasValidHandler = false;
+
+                foreach (var handlerName in subscription.HandlerNames)
                 {
-                    _logger.LogError("Handler type '{HandlerType}' does not implement IEventHandler interface", handlerName);
-                    continue;
+                    var handlerType = Type.GetType(handlerName);
+                    if (handlerType == null)
+                    {
+                        _logger.LogError("Handler type '{HandlerType}' not found for topic '{TopicName}' and event type '{EventType}'", 
+                            handlerName, subscription.TopicName, eventType);
+                        continue;
+                    }
+
+                    // Validate that the handler implements IEventHandler
+                    if (!typeof(IEventHandler).IsAssignableFrom(handlerType))
+                    {
+                        _logger.LogError("Handler type '{HandlerType}' does not implement IEventHandler interface", handlerName);
+                        continue;
+                    }
+
+                    handlerList.Add(handlerType);
+                    hasValidHandler = true;
+                    _logger.LogInformation("Mapped topic '{TopicName}' with event type '{EventType}' to handler type '{HandlerType}'", 
+                        subscription.TopicName, eventType, handlerType.Name);
                 }
 
-                handlerList.Add(handlerType);
-                hasValidHandler = true;
-                _logger.LogInformation("Mapped topic '{TopicName}' with event type '{EventType}' to handler type '{HandlerType}'", 
-                    subscription.TopicName, subscription.EventType, handlerType.Name);
-            }
-
-            // Validate that at least one valid handler was found
-            if (!hasValidHandler)
-            {
-                throw new InvalidOperationException(
-                    $"No valid handlers found for topic '{subscription.TopicName}' with event type '{subscription.EventType}'. " +
-                    $"All specified handlers must exist and implement IEventHandler.");
+                // Validate that at least one valid handler was found
+                if (!hasValidHandler)
+                {
+                    throw new InvalidOperationException(
+                        $"No valid handlers found for topic '{subscription.TopicName}' with event type '{eventType}'. " +
+                        $"All specified handlers must exist and implement IEventHandler.");
+                }
             }
         }
 
@@ -137,10 +147,10 @@ public class TopicResolver : ITopicResolver
         var handlers = new List<IEventHandler>();
 
         // Try to find exact match first
-        var configEntry = _topicConfig.Value.Sets[_topicConfig.Value.CurrentSet]
-            .FirstOrDefault(x => x.TopicName == topicName && x.EventType == eventType);
+        var configEntries = _topicConfig.Value.Sets[_topicConfig.Value.CurrentSet]
+            .Where(x => x.TopicName == topicName && x.EventTypes.Contains(eventType));
 
-        if (configEntry != null)
+        foreach (var configEntry in configEntries)
         {
             _logger.LogInformation("Found exact match for topic {Topic} and event type {EventType}", 
                 topicName, eventType);
@@ -155,10 +165,10 @@ public class TopicResolver : ITopicResolver
         }
 
         // Try wildcard match
-        configEntry = _topicConfig.Value.Sets[_topicConfig.Value.CurrentSet]
-            .FirstOrDefault(x => x.TopicName == topicName && x.EventType == "*");
+        var wildcardEntries = _topicConfig.Value.Sets[_topicConfig.Value.CurrentSet]
+            .Where(x => x.TopicName == topicName && x.EventTypes.Contains("*"));
 
-        if (configEntry != null)
+        foreach (var configEntry in wildcardEntries)
         {
             _logger.LogInformation("Found wildcard match for topic {Topic}", topicName);
             foreach (var handlerName in configEntry.HandlerNames)
