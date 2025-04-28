@@ -90,6 +90,7 @@ public class KafkaListenerServiceTests
 
         // Assert
         Assert.NotNull(service);
+        Assert.False(service.IsHealthy); // Should start as unhealthy
     }
 
     [Fact]
@@ -122,5 +123,25 @@ public class KafkaListenerServiceTests
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() => 
             new KafkaListenerService(_mockTopicResolver.Object, _mockTopicConfig.Object, _mockKafkaSettings.Object, null));
+    }
+
+    [Fact]
+    public void SetHealthy_UpdatesHealthStatus()
+    {
+        // Arrange
+        var service = new KafkaListenerService(
+            _mockTopicResolver.Object,
+            _mockTopicConfig.Object,
+            _mockKafkaSettings.Object,
+            _mockLogger.Object);
+
+        // Act & Assert
+        Assert.False(service.IsHealthy); // Initial state
+
+        service.SetHealthy(true);
+        Assert.True(service.IsHealthy);
+
+        service.SetHealthy(false);
+        Assert.False(service.IsHealthy);
     }
 } 
