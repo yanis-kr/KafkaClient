@@ -23,7 +23,7 @@ builder.ConfigureServices((context, services) => services
     .AddOktaAuthentication()
     .AddApiClients(context.Configuration)
     .AddSingleton<ITopicResolver, TopicResolver>()
-    .AddSingleton<IKafkaHealthCheck, KafkaListenerService>()
+    .AddSingleton<IKafkaHealthCheck, KafkaHealthMonitorService>()
     .AddHostedService<KafkaListenerService>());
 
 var app = builder.Build();
