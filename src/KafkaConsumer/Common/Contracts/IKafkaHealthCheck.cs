@@ -1,6 +1,6 @@
 using System;
 
-namespace KafkaConsumer.Common.Services;
+namespace KafkaConsumer.Common.Contracts;
 
 public interface IKafkaHealthCheck
 {

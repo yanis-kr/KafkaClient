@@ -1,3 +1,4 @@
+using KafkaConsumer.Common.Contracts;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using System.Threading;
 using System.Threading.Tasks;

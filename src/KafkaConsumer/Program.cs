@@ -10,6 +10,7 @@ using System.Text.Json;
 using System.Linq;
 using System.IO;
 using Microsoft.AspNetCore.Http;
+using KafkaConsumer.Common.Contracts;
 
 var builder = Host.CreateDefaultBuilder(args)
     .ConfigureAppConfigurationWithUserSecrets()
@@ -22,6 +23,7 @@ builder.ConfigureServices((context, services) => services
     .AddOktaAuthentication()
     .AddApiClients(context.Configuration)
     .AddSingleton<ITopicResolver, TopicResolver>()
+    .AddSingleton<IKafkaHealthCheck, KafkaListenerService>()
     .AddHostedService<KafkaListenerService>());
 
 var app = builder.Build();
