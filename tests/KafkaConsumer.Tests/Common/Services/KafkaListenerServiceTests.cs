@@ -18,6 +18,7 @@ public class KafkaListenerServiceTests
     private readonly Mock<IOptions<TopicSettings>> _mockTopicConfig;
     private readonly Mock<IOptions<KafkaSettings>> _mockKafkaSettings;
     private readonly Mock<ILogger<KafkaListenerService>> _mockLogger;
+    private readonly Mock<IKafkaHealthCheck> _mockHealthCheck;
     private readonly TopicSettings _topicConfig;
     private readonly KafkaSettings _kafkaSettings;
 
@@ -27,6 +28,7 @@ public class KafkaListenerServiceTests
         _mockTopicConfig = new Mock<IOptions<TopicSettings>>();
         _mockKafkaSettings = new Mock<IOptions<KafkaSettings>>();
         _mockLogger = new Mock<ILogger<KafkaListenerService>>();
+        _mockHealthCheck = new Mock<IKafkaHealthCheck>();
 
         _topicConfig = new TopicSettings
         {
@@ -60,7 +62,8 @@ public class KafkaListenerServiceTests
             _mockTopicResolver.Object, 
             _mockTopicConfig.Object, 
             _mockKafkaSettings.Object, 
-            _mockLogger.Object);
+            _mockLogger.Object,
+            _mockHealthCheck.Object);
         
         var cts = new CancellationTokenSource();
         cts.Cancel(); // Cancel immediately
@@ -80,17 +83,18 @@ public class KafkaListenerServiceTests
         var topicConfig = Options.Create(_topicConfig);
         var kafkaSettings = Options.Create(_kafkaSettings);
         var logger = new Mock<ILogger<KafkaListenerService>>().Object;
+        var healthCheck = new Mock<IKafkaHealthCheck>().Object;
 
         // Act
         var service = new KafkaListenerService(
             topicResolver,
             topicConfig,
             kafkaSettings,
-            logger);
+            logger,
+            healthCheck);
 
         // Assert
         Assert.NotNull(service);
-        Assert.False(service.IsHealthy); // Should start as unhealthy
     }
 
     [Fact]
@@ -98,7 +102,7 @@ public class KafkaListenerServiceTests
     {
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() => 
-            new KafkaListenerService(null, _mockTopicConfig.Object, _mockKafkaSettings.Object, _mockLogger.Object));
+            new KafkaListenerService(null, _mockTopicConfig.Object, _mockKafkaSettings.Object, _mockLogger.Object, _mockHealthCheck.Object));
     }
 
     [Fact]
@@ -106,7 +110,7 @@ public class KafkaListenerServiceTests
     {
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() => 
-            new KafkaListenerService(_mockTopicResolver.Object, null, _mockKafkaSettings.Object, _mockLogger.Object));
+            new KafkaListenerService(_mockTopicResolver.Object, null, _mockKafkaSettings.Object, _mockLogger.Object, _mockHealthCheck.Object));
     }
 
     [Fact]
@@ -114,7 +118,7 @@ public class KafkaListenerServiceTests
     {
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() => 
-            new KafkaListenerService(_mockTopicResolver.Object, _mockTopicConfig.Object, null, _mockLogger.Object));
+            new KafkaListenerService(_mockTopicResolver.Object, _mockTopicConfig.Object, null, _mockLogger.Object, _mockHealthCheck.Object));
     }
 
     [Fact]
@@ -122,26 +126,14 @@ public class KafkaListenerServiceTests
     {
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() => 
-            new KafkaListenerService(_mockTopicResolver.Object, _mockTopicConfig.Object, _mockKafkaSettings.Object, null));
+            new KafkaListenerService(_mockTopicResolver.Object, _mockTopicConfig.Object, _mockKafkaSettings.Object, null, _mockHealthCheck.Object));
     }
 
     [Fact]
-    public void SetHealthy_UpdatesHealthStatus()
+    public void Constructor_WithNullHealthCheck_ThrowsArgumentNullException()
     {
-        // Arrange
-        var service = new KafkaListenerService(
-            _mockTopicResolver.Object,
-            _mockTopicConfig.Object,
-            _mockKafkaSettings.Object,
-            _mockLogger.Object);
-
         // Act & Assert
-        Assert.False(service.IsHealthy); // Initial state
-
-        service.SetHealthy(true);
-        Assert.True(service.IsHealthy);
-
-        service.SetHealthy(false);
-        Assert.False(service.IsHealthy);
+        Assert.Throws<ArgumentNullException>(() => 
+            new KafkaListenerService(_mockTopicResolver.Object, _mockTopicConfig.Object, _mockKafkaSettings.Object, _mockLogger.Object, null));
     }
 } 
